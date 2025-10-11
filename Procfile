@@ -1,1 +1,1 @@
-web: java -Dserver.port=$PORT -jar build/libs/*.jar
+web: java -Dserver.port=$PORT -jar build/libs/dhbw-broker-bff-0.0.1-SNAPSHOT.jar
