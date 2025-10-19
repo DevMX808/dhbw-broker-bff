@@ -1,6 +1,7 @@
 package com.dhbw.broker.bff.service;
 
-import com.dhbw.broker.bff.entity.User;
+import com.dhbw.broker.bff.domain.User;
+import com.dhbw.broker.bff.domain.Role; // <— neu
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -33,14 +34,17 @@ public class JwtService {
         Instant exp = now.plus(ttl);
         lastExp = exp;
 
+        UUID subject = (user.getUserId() != null) ? user.getUserId() : UUID.randomUUID();
+        String[] roles = (user.getRole() == Role.ADMIN) ? new String[]{"ADMIN"} : new String[]{"USER"};
+
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .subject(user.getId() != null ? user.getId().toString() : UUID.randomUUID().toString())
+                .subject(subject.toString())
                 .issuer(issuer)
                 .issueTime(Date.from(now))
                 .expirationTime(Date.from(exp))
                 .claim("email", user.getEmail())
                 .claim("name", Map.of("given_name", user.getFirstName(), "family_name", user.getLastName()))
-                .claim("roles", user.isAdmin() ? new String[]{"ADMIN"} : new String[]{"USER"})
+                .claim("roles", roles)
                 .build();
 
         try {

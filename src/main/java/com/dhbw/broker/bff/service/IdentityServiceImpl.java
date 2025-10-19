@@ -4,7 +4,7 @@ import com.dhbw.broker.bff.dto.JwtAuthResponse;
 import com.dhbw.broker.bff.dto.SignInInput;
 import com.dhbw.broker.bff.dto.SignUpInput;
 import com.dhbw.broker.bff.dto.UserDto;
-import com.dhbw.broker.bff.entity.User;
+import com.dhbw.broker.bff.domain.User;
 import com.dhbw.broker.bff.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -71,9 +71,9 @@ public class IdentityServiceImpl implements IdentityService {
     private static UserDto toDto(User user) {
         UserDto dto = new UserDto();
         dto.setId(user.getId() != null ? user.getId().toString() : null);
-        dto.setEmail(user.getEmail());
-        dto.setFirstName(user.getFirstName());
-        dto.setLastName(user.getLastName());
+        dto.setEmail((String) user.getEmail());
+        dto.setFirstName((String) user.getFirstName());
+        dto.setLastName((String) user.getLastName());
         dto.setAdmin(user.isAdmin());
         return dto;
     }

@@ -1,6 +1,6 @@
 package com.dhbw.broker.bff.repository;
 
-import com.dhbw.broker.bff.entity.User;
+import com.dhbw.broker.bff.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
