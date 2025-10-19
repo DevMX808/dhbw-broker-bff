@@ -60,7 +60,6 @@ flyway {
     schemas = arrayOf("broker")
     defaultSchema = "broker"
     createSchemas = true
-    initSql = "SET search_path TO broker, public"
 
     url = System.getenv("SPRING_DATASOURCE_URL")
     user = System.getenv("SPRING_DATASOURCE_USERNAME")
