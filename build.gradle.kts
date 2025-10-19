@@ -62,9 +62,9 @@ flyway {
     createSchemas = true
     initSql = "SET search_path TO broker, public"
 
-    url = System.getenv("SPRING_DATASOURCE_URL") ?: "jdbc:postgresql://localhost:5432/broker"
-    user = System.getenv("SPRING_DATASOURCE_USERNAME") ?: "postgres"
-    password = System.getenv("SPRING_DATASOURCE_PASSWORD") ?: "postgres"
+    url = System.getenv("SPRING_DATASOURCE_URL")
+    user = System.getenv("SPRING_DATASOURCE_USERNAME")
+    password = System.getenv("SPRING_DATASOURCE_PASSWORD")
 
     locations = arrayOf("classpath:db/migration")
     cleanDisabled = true

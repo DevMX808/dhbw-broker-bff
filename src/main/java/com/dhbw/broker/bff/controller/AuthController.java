@@ -21,7 +21,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<UserDto> register(@Valid @RequestBody SignUpInput input) {
-        UserDto userDto = identityService.signUp(input);   // synchroner Service
+        UserDto userDto = identityService.signUp(input);
         return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
     }
 
