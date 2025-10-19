@@ -12,7 +12,7 @@ public class WalletAccount {
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
-    @Column(name = "currency", nullable = false, length = 3)
+    @Column(name = "currency", length = 3, nullable = false)
     private String currency;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
