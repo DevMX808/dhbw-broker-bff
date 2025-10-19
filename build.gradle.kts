@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.flywaydb.flyway") version "11.7.2"
 }
 
 group = "com.dhbw.broker"
@@ -9,24 +10,19 @@ version = "0.0.1-SNAPSHOT"
 description = "dhbw-broker-bff"
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
 }
 
-configurations {
-    compileOnly {
-        extendsFrom(configurations.annotationProcessor.get())
-    }
-}
-
-repositories {
-    mavenCentral()
-}
+repositories { mavenCentral() }
 
 dependencyManagement {
-    imports {
-        mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:3.3.0")
+    imports { mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:3.3.0") }
+}
+buildscript {
+    repositories { mavenCentral() }
+    dependencies {
+        classpath("org.flywaydb:flyway-database-postgresql:11.7.2")
+        classpath("org.postgresql:postgresql:42.7.4")
     }
 }
 
@@ -39,9 +35,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    runtimeOnly("org.postgresql:postgresql")
+
     implementation("org.flywaydb:flyway-core:11.7.2")
     implementation("org.flywaydb:flyway-database-postgresql:11.7.2")
+    runtimeOnly("org.postgresql:postgresql:42.7.4")
 
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -58,6 +55,20 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+flyway {
+
+    schemas = arrayOf("broker")
+    defaultSchema = "broker"
+    createSchemas = true
+    initSql = "SET search_path TO broker, public"
+
+    url = System.getenv("SPRING_DATASOURCE_URL") ?: "jdbc:postgresql://localhost:5432/broker"
+    user = System.getenv("SPRING_DATASOURCE_USERNAME") ?: "postgres"
+    password = System.getenv("SPRING_DATASOURCE_PASSWORD") ?: "postgres"
+
+    locations = arrayOf("classpath:db/migration")
+    cleanDisabled = true
+    baselineOnMigrate = true
 }
+
+tasks.withType<Test> { useJUnitPlatform() }
