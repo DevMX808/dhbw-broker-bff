@@ -1,80 +1,97 @@
 package com.dhbw.broker.bff.service;
 
+import com.dhbw.broker.bff.domain.Role;
+import com.dhbw.broker.bff.domain.Status;
+import com.dhbw.broker.bff.domain.User;
+import com.dhbw.broker.bff.domain.WalletAccount;
 import com.dhbw.broker.bff.dto.JwtAuthResponse;
 import com.dhbw.broker.bff.dto.SignInInput;
 import com.dhbw.broker.bff.dto.SignUpInput;
-import com.dhbw.broker.bff.dto.UserDto;
-import com.dhbw.broker.bff.domain.User;
 import com.dhbw.broker.bff.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import com.dhbw.broker.bff.repository.WalletAccountRepository;
+import jakarta.transaction.Transactional;
+import java.time.Instant;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.Locale;
-import java.util.UUID;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@RequiredArgsConstructor
-@Transactional
 public class IdentityServiceImpl implements IdentityService {
 
-    private final UserRepository userRepository;
+    private final UserRepository users;
+    private final WalletAccountRepository walletAccounts;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    @Override
-    public UserDto signUp(SignUpInput input) {
-        final String email = normalize(input.getEmail());
-        if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("E-Mail bereits vergeben");
-        }
-
-        User user = new User();
-        user.setId(UUID.randomUUID());
-        user.setEmail(email);
-        user.setFirstName(input.getFirstName());
-        user.setLastName(input.getLastName());
-        user.setAdmin(false);
-        user.setHashedPassword(passwordEncoder.encode(input.getPassword()));
-
-        user = userRepository.save(user);
-        return toDto(user);
+    public IdentityServiceImpl(UserRepository users,
+                               WalletAccountRepository walletAccounts,
+                               PasswordEncoder passwordEncoder,
+                               JwtService jwtService) {
+        this.users = users;
+        this.walletAccounts = walletAccounts;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @Override
-    public JwtAuthResponse signIn(SignInInput input) {
-        final String email = normalize(input.getEmail());
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Ungültige Zugangsdaten"));
-
-        if (!passwordEncoder.matches(input.getPassword(), user.getHashedPassword())) {
-            throw new IllegalArgumentException("Ungültige Zugangsdaten");
+    @Transactional
+    public JwtAuthResponse register(SignUpInput input) {
+        if (input == null ||
+                input.email() == null || input.email().isBlank() ||
+                input.password() == null || input.password().isBlank() ||
+                input.firstName() == null || input.firstName().isBlank() ||
+                input.lastName() == null || input.lastName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing required fields");
         }
 
-        String token = jwtService.createAccessToken(user);
-        Instant expiresAt = jwtService.getExpiresAt();
+        String email = input.email().trim().toLowerCase();
+        if (users.existsByEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+        }
 
-        JwtAuthResponse resp = new JwtAuthResponse();
-        resp.setToken(token);
-        resp.setTokenType("Bearer");
-        resp.setExpiresAt(expiresAt);
-        resp.setUser(toDto(user));
-        return resp;
+        User u = new User();
+        u.setEmail(email);
+        u.setPasswordHash(passwordEncoder.encode(input.password()));
+        u.setFirstName(input.firstName().trim());
+        u.setLastName(input.lastName().trim());
+        u.setRole(Role.USER);
+        u.setStatus(Status.ACTIVATED);
+
+        User saved = users.save(u);
+
+        WalletAccount wa = new WalletAccount();
+        wa.setUserId(saved.getId());
+        wa.setCurrency("USD");
+        walletAccounts.save(wa);
+
+        String jwt = jwtService.createAccessToken(saved);
+        Instant exp = jwtService.getExpiresAt();
+        return new JwtAuthResponse(jwt, "Bearer", exp);
     }
 
-    private static String normalize(String email) {
-        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
-    }
+    @Override
+    public JwtAuthResponse login(SignInInput input) {
+        if (input == null ||
+                input.email() == null || input.email().isBlank() ||
+                input.password() == null || input.password().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing credentials");
+        }
 
-    private static UserDto toDto(User user) {
-        UserDto dto = new UserDto();
-        dto.setId(user.getId() != null ? user.getId().toString() : null);
-        dto.setEmail((String) user.getEmail());
-        dto.setFirstName((String) user.getFirstName());
-        dto.setLastName((String) user.getLastName());
-        dto.setAdmin(user.isAdmin());
-        return dto;
+        String email = input.email().trim().toLowerCase();
+        User u = users.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+
+        if (u.getStatus() != Status.ACTIVATED) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is not active");
+        }
+
+        if (!passwordEncoder.matches(input.password(), u.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        }
+
+        String jwt = jwtService.createAccessToken(u);
+        Instant exp = jwtService.getExpiresAt();
+        return new JwtAuthResponse(jwt, "Bearer", exp);
     }
 }

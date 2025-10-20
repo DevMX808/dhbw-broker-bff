@@ -26,6 +26,7 @@ public class User {
     @Column(name = "email", nullable = false, length = 320)
     private String email;
 
+    @Getter
     @Setter
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
@@ -36,6 +37,8 @@ public class User {
     @Column(name = "role", nullable = false, length = 10)
     private Role role;
 
+    @Setter
+    @Getter
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 12)
     private Status status;
@@ -100,4 +103,5 @@ public class User {
     public boolean isAdmin() {
         return this.role == Role.ADMIN;
     }
+
 }

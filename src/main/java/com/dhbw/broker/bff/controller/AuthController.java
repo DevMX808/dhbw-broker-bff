@@ -3,37 +3,41 @@ package com.dhbw.broker.bff.controller;
 import com.dhbw.broker.bff.dto.JwtAuthResponse;
 import com.dhbw.broker.bff.dto.SignInInput;
 import com.dhbw.broker.bff.dto.SignUpInput;
-import com.dhbw.broker.bff.dto.UserDto;
 import com.dhbw.broker.bff.service.IdentityService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequiredArgsConstructor
-@RequestMapping ("/auth")
+@RequestMapping(
+        value = "/auth",
+        consumes = MediaType.APPLICATION_JSON_VALUE,
+        produces = MediaType.APPLICATION_JSON_VALUE
+)
 public class AuthController {
 
     private final IdentityService identityService;
 
+    public AuthController(IdentityService identityService) {
+        this.identityService = identityService;
+    }
+
     @PostMapping("/register")
-    public ResponseEntity<UserDto> register(@Valid @RequestBody SignUpInput input) {
-        UserDto userDto = identityService.signUp(input);
-        return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
+    public ResponseEntity<JwtAuthResponse> register(@Valid @RequestBody SignUpInput input) {
+        JwtAuthResponse res = identityService.register(input);
+        return ResponseEntity
+                .ok()
+                .header("Authorization", res.tokenType() + " " + res.accessToken())
+                .body(res);
     }
 
     @PostMapping("/login")
     public ResponseEntity<JwtAuthResponse> login(@Valid @RequestBody SignInInput input) {
-        JwtAuthResponse jwt = identityService.signIn(input);
-        return ResponseEntity.ok(jwt);
-    }
-
-
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<Void> handleBadCreds() {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        JwtAuthResponse res = identityService.login(input);
+        return ResponseEntity
+                .ok()
+                .header("Authorization", res.tokenType() + " " + res.accessToken())
+                .body(res);
     }
 }
