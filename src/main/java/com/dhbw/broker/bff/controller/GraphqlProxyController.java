@@ -43,7 +43,7 @@ public class GraphqlProxyController {
         String svcJwt = jwtService.issueServiceToken(
                 "graphql", List.of("graphql:proxy")
         );
-        headers.setBearerAuth(svcJwt);git
+        headers.setBearerAuth(svcJwt);
 
         HttpEntity<String> req = new HttpEntity<>(body, headers);
         ResponseEntity<String> resp = restTemplate.postForEntity(upstream, req, String.class);
