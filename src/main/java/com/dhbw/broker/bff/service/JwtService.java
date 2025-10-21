@@ -91,4 +91,31 @@ public class JwtService {
             throw new RuntimeException("Failed to sign upstream JWT", e);
         }
     }
+
+    public String issueServiceToken(String audience, List<String> scopes) {
+        try {
+            Instant now = Instant.now();
+            Instant exp = now.plus(ttl);
+
+            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
+                    .keyID(rsaSigningKey.getKeyID())
+                    .type(JOSEObjectType.JWT)
+                    .build();
+
+            JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                    .issuer(issuer)
+                    .issueTime(Date.from(now))
+                    .expirationTime(Date.from(exp))
+                    .audience(audience)
+                    .claim("scope", String.join(" ", scopes))
+                    .claim("azp", "bff")
+                    .build();
+
+            SignedJWT jwt = new SignedJWT(header, claims);
+            jwt.sign(new RSASSASigner(rsaSigningKey));
+            return jwt.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException("Failed to sign service JWT", e);
+        }
+    }
 }
