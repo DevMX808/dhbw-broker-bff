@@ -1,64 +1,68 @@
 package com.dhbw.broker.bff.service;
 
-import com.dhbw.broker.bff.domain.User;
-import com.dhbw.broker.bff.domain.Role; // <— neu
-import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
-@Component
+@Service
 public class JwtService {
-    private final RSAKey rsaKey;
+
+    private final RSAKey rsaSigningKey;
     private final String issuer;
     private final Duration ttl;
-    private Instant lastExp;
 
-    public JwtService(RSAKey rsaKey,
-                      @Value("${security.jwt.issuer:dhbw-broker-bff}") String issuer,
-                      @Value("${security.jwt.ttl-seconds:3600}") long ttlSeconds) {
-        this.rsaKey = rsaKey;
+    public JwtService(RSAKey rsaSigningKey,
+                      @Value("${security.jwt.issuer}") String issuer,
+                      @Value("${security.jwt.ttl-minutes}") long ttlMinutes) {
+        this.rsaSigningKey = rsaSigningKey;
         this.issuer = issuer;
-        this.ttl = Duration.ofSeconds(ttlSeconds);
+        this.ttl = Duration.ofMinutes(ttlMinutes);
     }
 
-    public String createAccessToken(User user) {
-        Instant now = Instant.now();
-        Instant exp = now.plus(ttl);
-        lastExp = exp;
-
-        UUID subject = (user.getUserId() != null) ? user.getUserId() : UUID.randomUUID();
-        String[] roles = (user.getRole() == Role.ADMIN) ? new String[]{"ADMIN"} : new String[]{"USER"};
-
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .subject(subject.toString())
-                .issuer(issuer)
-                .issueTime(Date.from(now))
-                .expirationTime(Date.from(exp))
-                .claim("email", user.getEmail())
-                .claim("name", Map.of("given_name", user.getFirstName(), "family_name", user.getLastName()))
-                .claim("roles", roles)
-                .build();
-
+    public AccessToken issueAccessToken(UUID userId,
+                                        String email,
+                                        String firstName,
+                                        String lastName,
+                                        boolean isAdmin) {
         try {
-            var signer = new com.nimbusds.jose.crypto.RSASSASigner(rsaKey);
-            var header = new com.nimbusds.jose.JWSHeader.Builder(JWSAlgorithm.RS256)
-                    .keyID(rsaKey.getKeyID())
+            Instant now = Instant.now();
+            Instant exp = now.plus(ttl);
+
+            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
+                    .keyID(rsaSigningKey.getKeyID())
+                    .type(JOSEObjectType.JWT)
                     .build();
-            var jwt = new com.nimbusds.jwt.SignedJWT(header, claims);
+
+            List<String> roles = List.of(isAdmin ? "ADMIN" : "USER");
+
+            JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                    .subject(userId.toString())
+                    .issuer(issuer)
+                    .issueTime(Date.from(now))
+                    .expirationTime(Date.from(exp))
+                    .claim("email", email)
+                    .claim("given_name", firstName)
+                    .claim("family_name", lastName)
+                    .claim("roles", roles)
+                    .build();
+
+            SignedJWT jwt = new SignedJWT(header, claims);
+            JWSSigner signer = new RSASSASigner(rsaSigningKey);
             jwt.sign(signer);
-            return jwt.serialize();
-        } catch (Exception e) {
-            throw new IllegalStateException("Konnte JWT nicht signieren", e);
+
+            return new AccessToken(jwt.serialize(), exp);
+        } catch (JOSEException e) {
+            throw new RuntimeException("Failed to sign JWT", e);
         }
     }
-
-    public Instant getExpiresAt() { return lastExp; }
 }

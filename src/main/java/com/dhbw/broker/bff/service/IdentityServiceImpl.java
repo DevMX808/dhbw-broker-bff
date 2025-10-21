@@ -10,7 +10,6 @@ import com.dhbw.broker.bff.dto.SignUpInput;
 import com.dhbw.broker.bff.repository.UserRepository;
 import com.dhbw.broker.bff.repository.WalletAccountRepository;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -65,12 +64,20 @@ public class IdentityServiceImpl implements IdentityService {
         wa.setCurrency("USD");
         walletAccounts.save(wa);
 
-        String jwt = jwtService.createAccessToken(saved);
-        Instant exp = jwtService.getExpiresAt();
-        return new JwtAuthResponse(jwt, "Bearer", exp);
+        boolean isAdmin = saved.getRole() == Role.ADMIN;
+        AccessToken token = jwtService.issueAccessToken(
+                saved.getId(),
+                saved.getEmail(),
+                saved.getFirstName(),
+                saved.getLastName(),
+                isAdmin
+        );
+
+        return new JwtAuthResponse(token.value(), "Bearer", token.expiresAt());
     }
 
     @Override
+    @Transactional(Transactional.TxType.SUPPORTS)
     public JwtAuthResponse login(SignInInput input) {
         if (input == null ||
                 input.email() == null || input.email().isBlank() ||
@@ -90,8 +97,15 @@ public class IdentityServiceImpl implements IdentityService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        String jwt = jwtService.createAccessToken(u);
-        Instant exp = jwtService.getExpiresAt();
-        return new JwtAuthResponse(jwt, "Bearer", exp);
+        boolean isAdmin = u.getRole() == Role.ADMIN;
+        AccessToken token = jwtService.issueAccessToken(
+                u.getId(),
+                u.getEmail(),
+                u.getFirstName(),
+                u.getLastName(),
+                isAdmin
+        );
+
+        return new JwtAuthResponse(token.value(), "Bearer", token.expiresAt());
     }
 }

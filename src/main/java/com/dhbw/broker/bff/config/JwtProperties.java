@@ -9,3 +9,5 @@ public record JwtProperties(
         String issuer,
         String privateKeyPemB64
 ) {}
+
+
