@@ -20,13 +20,16 @@ public class JwtService {
     private final RSAKey rsaSigningKey;
     private final String issuer;
     private final Duration ttl;
+    private final Duration upstreamTtl;
 
     public JwtService(RSAKey rsaSigningKey,
                       @Value("${security.jwt.issuer}") String issuer,
-                      @Value("${security.jwt.ttl-minutes}") long ttlMinutes) {
+                      @Value("${security.jwt.ttl-minutes}") long ttlMinutes,
+                      @Value("${security.jwt.upstream-ttl-seconds:60}") long upstreamTtlSeconds) {
         this.rsaSigningKey = rsaSigningKey;
         this.issuer = issuer;
         this.ttl = Duration.ofMinutes(ttlMinutes);
+        this.upstreamTtl = Duration.ofSeconds(upstreamTtlSeconds);
     }
 
     public AccessToken issueAccessToken(UUID userId,
@@ -34,9 +37,35 @@ public class JwtService {
                                         String firstName,
                                         String lastName,
                                         boolean isAdmin) {
+        return sign(userId, email, firstName, lastName, isAdmin, ttl, /*aud*/ null, /*scope*/ null, "user_access");
+    }
+
+    public AccessToken issueUpstreamToken(UUID userId,
+                                          String email,
+                                          String firstName,
+                                          String lastName,
+                                          boolean isAdmin) {
+        return sign(
+                userId, email, firstName, lastName, isAdmin,
+                upstreamTtl,
+                List.of("graphql"),                 // aud
+                List.of("graphql:proxy"),           // scope
+                "bff_proxy"
+        );
+    }
+
+    private AccessToken sign(UUID userId,
+                             String email,
+                             String firstName,
+                             String lastName,
+                             boolean isAdmin,
+                             Duration lifetime,
+                             List<String> audienceOrNull,
+                             List<String> scopeOrNull,
+                             String tokenUse) {
         try {
             Instant now = Instant.now();
-            Instant exp = now.plus(ttl);
+            Instant exp  = now.plus(lifetime);
 
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
                     .keyID(rsaSigningKey.getKeyID())
@@ -45,7 +74,7 @@ public class JwtService {
 
             List<String> roles = List.of(isAdmin ? "ADMIN" : "USER");
 
-            JWTClaimsSet claims = new JWTClaimsSet.Builder()
+            JWTClaimsSet.Builder b = new JWTClaimsSet.Builder()
                     .subject(userId.toString())
                     .issuer(issuer)
                     .issueTime(Date.from(now))
@@ -54,11 +83,13 @@ public class JwtService {
                     .claim("given_name", firstName)
                     .claim("family_name", lastName)
                     .claim("roles", roles)
-                    .build();
+                    .claim("token_use", tokenUse);
 
-            SignedJWT jwt = new SignedJWT(header, claims);
-            JWSSigner signer = new RSASSASigner(rsaSigningKey);
-            jwt.sign(signer);
+            if (audienceOrNull != null) b.audience(audienceOrNull);
+            if (scopeOrNull != null)    b.claim("scope", scopeOrNull);
+
+            SignedJWT jwt = new SignedJWT(header, b.build());
+            jwt.sign(new RSASSASigner(rsaSigningKey));
 
             return new AccessToken(jwt.serialize(), exp);
         } catch (JOSEException e) {
