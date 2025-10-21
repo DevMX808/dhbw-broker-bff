@@ -37,35 +37,9 @@ public class JwtService {
                                         String firstName,
                                         String lastName,
                                         boolean isAdmin) {
-        return sign(userId, email, firstName, lastName, isAdmin,
-                ttl, null, null, "user_access");
-    }
-
-    public AccessToken issueUpstreamToken(UUID userId,
-                                          String email,
-                                          String firstName,
-                                          String lastName,
-                                          boolean isAdmin) {
-        return sign(userId, email, firstName, lastName, isAdmin,
-                upstreamTtl,
-                List.of("graphql"),
-                List.of("graphql:proxy"),
-                "bff_proxy");
-    }
-
-    private AccessToken sign(UUID userId,
-                             String email,
-                             String firstName,
-                             String lastName,
-                             boolean isAdmin,
-                             Duration lifetime,
-                             List<String> audienceOrNull,
-                             List<String> scopeOrNull,
-                             String tokenUse) {
         try {
             Instant now = Instant.now();
-            Instant exp = now.plus(lifetime);
-
+            Instant exp = now.plus(ttl);
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
                     .keyID(rsaSigningKey.getKeyID())
                     .type(JOSEObjectType.JWT)
@@ -73,7 +47,7 @@ public class JwtService {
 
             List<String> roles = List.of(isAdmin ? "ADMIN" : "USER");
 
-            JWTClaimsSet.Builder b = new JWTClaimsSet.Builder()
+            JWTClaimsSet claims = new JWTClaimsSet.Builder()
                     .subject(userId.toString())
                     .issuer(issuer)
                     .issueTime(Date.from(now))
@@ -82,16 +56,42 @@ public class JwtService {
                     .claim("given_name", firstName)
                     .claim("family_name", lastName)
                     .claim("roles", roles)
-                    .claim("token_use", tokenUse);
+                    .build();
 
-            if (audienceOrNull != null) b.audience(audienceOrNull);
-            if (scopeOrNull != null)    b.claim("scope", scopeOrNull);
-
-            SignedJWT jwt = new SignedJWT(header, b.build());
+            SignedJWT jwt = new SignedJWT(header, claims);
             jwt.sign(new RSASSASigner(rsaSigningKey));
             return new AccessToken(jwt.serialize(), exp);
         } catch (JOSEException e) {
             throw new RuntimeException("Failed to sign JWT", e);
+        }
+    }
+
+    public String issueGraphqlUpstreamToken(UUID userId, String email) {
+        try {
+            Instant now = Instant.now();
+            Instant exp = now.plus(upstreamTtl);
+
+            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
+                    .keyID(rsaSigningKey.getKeyID())
+                    .type(JOSEObjectType.JWT)
+                    .build();
+
+            JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                    .subject(userId.toString())
+                    .issuer(issuer)
+                    .issueTime(Date.from(now))
+                    .expirationTime(Date.from(exp))
+                    .audience(List.of("graphql"))
+                    .claim("scope", "graphql:proxy")
+                    .claim("token_use", "bff_proxy")
+                    .claim("email", email)
+                    .build();
+
+            SignedJWT jwt = new SignedJWT(header, claims);
+            jwt.sign(new RSASSASigner(rsaSigningKey));
+            return jwt.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException("Failed to sign upstream JWT", e);
         }
     }
 }

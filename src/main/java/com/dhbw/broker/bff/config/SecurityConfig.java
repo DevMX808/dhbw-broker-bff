@@ -41,9 +41,7 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/health", "/actuator/health").permitAll()
-                        .requestMatchers("/jwks.json", "/.well-known/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll() // <— WICHTIG
+                        .requestMatchers("/health", "/actuator/health", "/jwks.json", "/.well-known/**", "/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

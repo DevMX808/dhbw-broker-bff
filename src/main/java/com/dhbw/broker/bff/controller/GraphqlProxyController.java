@@ -7,7 +7,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -32,45 +31,27 @@ public class GraphqlProxyController {
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> proxy(@RequestBody String body,
-                                        Authentication authentication) {
+    public ResponseEntity<String> proxy(@RequestBody String body, Authentication authentication) {
+
         JwtAuthenticationToken auth = (JwtAuthenticationToken) authentication;
-        Jwt in = auth.getToken();
+        Jwt jwt = auth.getToken();
+        UUID userId = UUID.fromString(jwt.getSubject());
+        String email = jwt.getClaimAsString("email");
 
-        UUID userId = UUID.fromString(in.getSubject());
-        String email = in.getClaimAsString("email");
-        String given = in.getClaimAsString("given_name");
-        String family = in.getClaimAsString("family_name");
-        List<String> roles = in.getClaimAsStringList("roles");
-        boolean isAdmin = roles != null && roles.contains("ADMIN");
-
-        String upstreamToken = jwtService
-                .issueUpstreamToken(userId, email, given, family, isAdmin)
-                .value();
+        String upstreamJwt = jwtService.issueGraphqlUpstreamToken(userId, email);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.setBearerAuth(upstreamToken);
+        headers.setBearerAuth(upstreamJwt);
 
         HttpEntity<String> req = new HttpEntity<>(body, headers);
+        ResponseEntity<String> resp = restTemplate.postForEntity(upstream, req, String.class);
 
-        try {
-            ResponseEntity<String> resp =
-                    restTemplate.postForEntity(upstream, req, String.class);
+        HttpHeaders out = new HttpHeaders();
+        MediaType ct = resp.getHeaders().getContentType();
+        if (ct != null) out.setContentType(ct);
 
-            HttpHeaders out = new HttpHeaders();
-            out.setContentType(MediaType.APPLICATION_JSON);
-            return new ResponseEntity<>(resp.getBody(), out, resp.getStatusCode());
-        } catch (RestClientResponseException e) {
-            HttpHeaders out = new HttpHeaders();
-            if (e.getResponseHeaders() != null &&
-                    e.getResponseHeaders().getContentType() != null) {
-                out.setContentType(e.getResponseHeaders().getContentType());
-            } else {
-                out.setContentType(MediaType.APPLICATION_JSON);
-            }
-            return new ResponseEntity<>(e.getResponseBodyAsString(), out, HttpStatus.valueOf(e.getRawStatusCode()));
-        }
+        return new ResponseEntity<>(resp.getBody(), out, resp.getStatusCode());
     }
 }
