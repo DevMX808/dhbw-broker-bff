@@ -79,7 +79,7 @@ public class JwtService {
                     .issueTime(Date.from(now))
                     .expirationTime(Date.from(exp))
                     .audience(List.of("graphql"))
-                    .claim("scope", "graphql:proxy")
+                    .claim("scope", java.util.List.of("graphql:proxy"))
                     .claim("token_use", "bff_proxy")
                     .claim("email", email)
                     .build();
