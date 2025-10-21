@@ -37,7 +37,8 @@ public class JwtService {
                                         String firstName,
                                         String lastName,
                                         boolean isAdmin) {
-        return sign(userId, email, firstName, lastName, isAdmin, ttl, /*aud*/ null, /*scope*/ null, "user_access");
+        return sign(userId, email, firstName, lastName, isAdmin,
+                ttl, null, null, "user_access");
     }
 
     public AccessToken issueUpstreamToken(UUID userId,
@@ -45,13 +46,11 @@ public class JwtService {
                                           String firstName,
                                           String lastName,
                                           boolean isAdmin) {
-        return sign(
-                userId, email, firstName, lastName, isAdmin,
+        return sign(userId, email, firstName, lastName, isAdmin,
                 upstreamTtl,
-                List.of("graphql"),                 // aud
-                List.of("graphql:proxy"),           // scope
-                "bff_proxy"
-        );
+                List.of("graphql"),
+                List.of("graphql:proxy"),
+                "bff_proxy");
     }
 
     private AccessToken sign(UUID userId,
@@ -65,7 +64,7 @@ public class JwtService {
                              String tokenUse) {
         try {
             Instant now = Instant.now();
-            Instant exp  = now.plus(lifetime);
+            Instant exp = now.plus(lifetime);
 
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
                     .keyID(rsaSigningKey.getKeyID())
@@ -90,7 +89,6 @@ public class JwtService {
 
             SignedJWT jwt = new SignedJWT(header, b.build());
             jwt.sign(new RSASSASigner(rsaSigningKey));
-
             return new AccessToken(jwt.serialize(), exp);
         } catch (JOSEException e) {
             throw new RuntimeException("Failed to sign JWT", e);

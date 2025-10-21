@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -49,13 +50,27 @@ public class GraphqlProxyController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         headers.setBearerAuth(upstreamToken);
 
         HttpEntity<String> req = new HttpEntity<>(body, headers);
-        ResponseEntity<String> resp = restTemplate.postForEntity(upstream, req, String.class);
 
-        HttpHeaders out = new HttpHeaders();
-        out.setContentType(MediaType.APPLICATION_JSON);
-        return new ResponseEntity<>(resp.getBody(), out, resp.getStatusCode());
+        try {
+            ResponseEntity<String> resp =
+                    restTemplate.postForEntity(upstream, req, String.class);
+
+            HttpHeaders out = new HttpHeaders();
+            out.setContentType(MediaType.APPLICATION_JSON);
+            return new ResponseEntity<>(resp.getBody(), out, resp.getStatusCode());
+        } catch (RestClientResponseException e) {
+            HttpHeaders out = new HttpHeaders();
+            if (e.getResponseHeaders() != null &&
+                    e.getResponseHeaders().getContentType() != null) {
+                out.setContentType(e.getResponseHeaders().getContentType());
+            } else {
+                out.setContentType(MediaType.APPLICATION_JSON);
+            }
+            return new ResponseEntity<>(e.getResponseBodyAsString(), out, HttpStatus.valueOf(e.getRawStatusCode()));
+        }
     }
 }
