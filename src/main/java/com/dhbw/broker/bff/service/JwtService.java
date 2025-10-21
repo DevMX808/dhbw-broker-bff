@@ -40,10 +40,9 @@ public class JwtService {
         try {
             Instant now = Instant.now();
             Instant exp = now.plus(ttl);
+
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                    .keyID(rsaSigningKey.getKeyID())
-                    .type(JOSEObjectType.JWT)
-                    .build();
+                    .keyID(rsaSigningKey.getKeyID()).type(JOSEObjectType.JWT).build();
 
             List<String> roles = List.of(isAdmin ? "ADMIN" : "USER");
 
@@ -72,9 +71,7 @@ public class JwtService {
             Instant exp = now.plus(upstreamTtl);
 
             JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                    .keyID(rsaSigningKey.getKeyID())
-                    .type(JOSEObjectType.JWT)
-                    .build();
+                    .keyID(rsaSigningKey.getKeyID()).type(JOSEObjectType.JWT).build();
 
             JWTClaimsSet claims = new JWTClaimsSet.Builder()
                     .subject(userId.toString())
