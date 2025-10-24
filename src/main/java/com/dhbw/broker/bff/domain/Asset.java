@@ -1,7 +1,6 @@
 package com.dhbw.broker.bff.domain;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.UuidGenerator;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
@@ -24,4 +23,41 @@ public class Asset {
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    // Getters and Setters
+    public String getAssetSymbol() {
+        return assetSymbol;
+    }
+
+    public void setAssetSymbol(String assetSymbol) {
+        this.assetSymbol = assetSymbol;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public BigDecimal getMinTradeIncrement() {
+        return minTradeIncrement;
+    }
+
+    public void setMinTradeIncrement(BigDecimal minTradeIncrement) {
+        this.minTradeIncrement = minTradeIncrement;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

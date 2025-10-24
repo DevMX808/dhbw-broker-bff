@@ -41,7 +41,7 @@ public class GraphqlProxyController {
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
         String svcJwt = jwtService.issueServiceToken(
-                "graphql", List.of("graphql:proxy")
+                upstreamAudience, List.of(upstreamScope)
         );
         headers.setBearerAuth(svcJwt);
 

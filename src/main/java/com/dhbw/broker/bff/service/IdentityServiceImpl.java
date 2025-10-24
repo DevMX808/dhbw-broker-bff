@@ -11,6 +11,7 @@ import com.dhbw.broker.bff.repository.UserRepository;
 import com.dhbw.broker.bff.repository.WalletAccountRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -107,5 +108,11 @@ public class IdentityServiceImpl implements IdentityService {
         );
 
         return new JwtAuthResponse(token.value(), "Bearer", token.expiresAt());
+    }
+
+    @Override
+    public User getCurrentUser() {
+        return users.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
 }

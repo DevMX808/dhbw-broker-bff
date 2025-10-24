@@ -43,4 +43,65 @@ public class Trade {
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    // Getters and Setters
+    public UUID getTradeId() {
+        return tradeId;
+    }
+
+    public void setTradeId(UUID tradeId) {
+        this.tradeId = tradeId;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public Asset getAsset() {
+        return asset;
+    }
+
+    public void setAsset(Asset asset) {
+        this.asset = asset;
+    }
+
+    public TradeSide getSide() {
+        return side;
+    }
+
+    public void setSide(TradeSide side) {
+        this.side = side;
+    }
+
+    public BigDecimal getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(BigDecimal quantity) {
+        this.quantity = quantity;
+    }
+
+    public BigDecimal getPriceUsd() {
+        return priceUsd;
+    }
+
+    public void setPriceUsd(BigDecimal priceUsd) {
+        this.priceUsd = priceUsd;
+    }
+
+    public OffsetDateTime getExecutedAt() {
+        return executedAt;
+    }
+
+    public void setExecutedAt(OffsetDateTime executedAt) {
+        this.executedAt = executedAt;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

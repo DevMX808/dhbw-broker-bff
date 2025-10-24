@@ -3,6 +3,7 @@ package com.dhbw.broker.bff.service;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,5 +96,38 @@ public class GraphqlPriceService {
     }
 
     return objectMapper.readTree(response.getBody());
+  }
+
+  /**
+   * Holt den aktuellen Preis für ein Asset
+   */
+  public BigDecimal getCurrentPrice(String assetSymbol) {
+    String query = """
+      query GetCurrentPrice($symbol: String!) {
+        currentPrice(assetSymbol: $symbol) {
+          priceUsd
+        }
+      }
+      """;
+
+    Map<String, Object> variables = Map.of("symbol", assetSymbol);
+    Map<String, Object> request = Map.of(
+      "query", query,
+      "variables", variables
+    );
+
+    try {
+      JsonNode response = executeGraphqlQuery(request);
+      JsonNode priceData = response.path("data").path("currentPrice").path("priceUsd");
+      
+      if (priceData.isMissingNode() || priceData.isNull()) {
+        return null;
+      }
+
+      return new BigDecimal(priceData.asText());
+    } catch (Exception e) {
+      log.error("Failed to get current price for {}: {}", assetSymbol, e.getMessage());
+      return null;
+    }
   }
 }
