@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .requestMatchers("/health", "/actuator/health", "/jwks.json", "/.well-known/**", "/auth/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/price/24h/**").permitAll()
+                .requestMatchers("/api/trades/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
