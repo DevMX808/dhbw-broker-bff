@@ -49,19 +49,8 @@ public class TradeServiceImpl implements TradeService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing required fields");
         }
 
-        // Get current user (with fallback for testing without authentication)
-        User user;
-        try {
-            user = identityService.getCurrentUser();
-        } catch (ResponseStatusException e) {
-            if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
-                // For testing purposes: use a default test user when no authentication
-                logger.warn("No authenticated user found, using test user for trade execution");
-                user = getOrCreateTestUser();
-            } else {
-                throw e;
-            }
-        }
+        // Get current authenticated user
+        User user = identityService.getCurrentUser();
 
         // Validate and get asset
         Asset asset = assetRepository.findByAssetSymbolAndActive(request.getAssetSymbol())
@@ -120,56 +109,15 @@ public class TradeServiceImpl implements TradeService {
 
     @Override
     public List<Trade> getUserTrades() {
-        User user;
-        try {
-            user = identityService.getCurrentUser();
-        } catch (ResponseStatusException e) {
-            if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
-                user = getOrCreateTestUser();
-            } else {
-                throw e;
-            }
-        }
+        User user = identityService.getCurrentUser();
         return tradeRepository.findByUserOrderByExecutedAtDesc(user);
     }
 
     @Override
     public List<Trade> getUserTradesByAsset(String assetSymbol) {
-        User user;
-        try {
-            user = identityService.getCurrentUser();
-        } catch (ResponseStatusException e) {
-            if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
-                user = getOrCreateTestUser();
-            } else {
-                throw e;
-            }
-        }
+        User user = identityService.getCurrentUser();
         return tradeRepository.findByUserAndAssetSymbolOrderByExecutedAtDesc(user, assetSymbol);
     }
 
-    private User getOrCreateTestUser() {
-        // This is a helper method for testing without authentication
-        // In production, this would not be used as authentication would be enforced
-        
-        // Try to get the first available user from the database
-        List<User> users = userRepository.findAll();
-        if (!users.isEmpty()) {
-            User existingUser = users.get(0);
-            logger.info("Using existing user for testing: {}", existingUser.getEmail());
-            return existingUser;
-        }
-        
-        // If no users exist, create a test user
-        logger.warn("No users found in database, creating test user");
-        User testUser = new User();
-        testUser.setEmail("test@dhbw-broker.com");
-        testUser.setFirstName("Test");
-        testUser.setLastName("User");
-        testUser.setRole(Role.USER);
-        testUser.setStatus(Status.ACTIVATED);
-        testUser.setPasswordHash("$2a$10$dummy.hash.for.testing.only");
-        
-        return userRepository.save(testUser);
-    }
+
 }

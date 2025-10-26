@@ -112,7 +112,8 @@ public class IdentityServiceImpl implements IdentityService {
 
     @Override
     public User getCurrentUser() {
-        return users.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return users.findById(java.util.UUID.fromString(userId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
 }
