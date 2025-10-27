@@ -1,11 +1,12 @@
 package com.dhbw.broker.bff.config;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 import java.security.interfaces.RSAPublicKey;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -29,6 +30,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain security(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
+        // Rollen aus dem "roles"-Claim mit "ROLE_"-Prefix
         var roles = new JwtGrantedAuthoritiesConverter();
         roles.setAuthoritiesClaimName("roles");
         roles.setAuthorityPrefix("ROLE_");
@@ -43,14 +45,14 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/health", "/actuator/health", "/jwks.json", "/.well-known/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/frontend-config").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/price/24h/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/graphql").authenticated()   // oder .hasRole("USER")
-                        .requestMatchers("/api/trades/**").authenticated()
+                        .requestMatchers("/health", "/actuator/health",
+                                "/jwks.json", "/.well-known/jwks.json",
+                                "/frontend-config").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login", "/auth/register").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/**").authenticated()
+                        .anyRequest().denyAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(jwtAuth))
