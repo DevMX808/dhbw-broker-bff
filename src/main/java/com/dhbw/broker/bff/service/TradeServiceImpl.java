@@ -19,7 +19,6 @@ import com.dhbw.broker.bff.dto.TradeRequest;
 import com.dhbw.broker.bff.dto.TradeResponse;
 import com.dhbw.broker.bff.repository.AssetRepository;
 import com.dhbw.broker.bff.repository.TradeRepository;
-import com.dhbw.broker.bff.repository.UserRepository;
 
 @Service
 public class TradeServiceImpl implements TradeService {
@@ -30,20 +29,17 @@ public class TradeServiceImpl implements TradeService {
     private final AssetRepository assetRepository;
     private final IdentityService identityService;
     private final GraphqlPriceService priceService;
-    private final UserRepository userRepository;
     private final WalletService walletService;
 
     public TradeServiceImpl(TradeRepository tradeRepository,
                            AssetRepository assetRepository,
                            IdentityService identityService,
                            GraphqlPriceService priceService,
-                           UserRepository userRepository,
                            WalletService walletService) {
         this.tradeRepository = tradeRepository;
         this.assetRepository = assetRepository;
         this.identityService = identityService;
         this.priceService = priceService;
-        this.userRepository = userRepository;
         this.walletService = walletService;
     }
 

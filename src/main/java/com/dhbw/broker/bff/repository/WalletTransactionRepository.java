@@ -1,7 +1,6 @@
 package com.dhbw.broker.bff.repository;
 
 import com.dhbw.broker.bff.domain.WalletTransaction;
-import com.dhbw.broker.bff.domain.WalletTransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
