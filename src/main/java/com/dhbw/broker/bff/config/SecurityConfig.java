@@ -30,7 +30,6 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain security(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
-        // Rollen aus dem "roles"-Claim mit "ROLE_"-Prefix
         var roles = new JwtGrantedAuthoritiesConverter();
         roles.setAuthoritiesClaimName("roles");
         roles.setAuthorityPrefix("ROLE_");
