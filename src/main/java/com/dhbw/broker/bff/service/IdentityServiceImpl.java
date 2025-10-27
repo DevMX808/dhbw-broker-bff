@@ -1,5 +1,11 @@
 package com.dhbw.broker.bff.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.dhbw.broker.bff.domain.Role;
 import com.dhbw.broker.bff.domain.Status;
 import com.dhbw.broker.bff.domain.User;
@@ -9,12 +15,8 @@ import com.dhbw.broker.bff.dto.SignInInput;
 import com.dhbw.broker.bff.dto.SignUpInput;
 import com.dhbw.broker.bff.repository.UserRepository;
 import com.dhbw.broker.bff.repository.WalletAccountRepository;
+
 import jakarta.transaction.Transactional;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class IdentityServiceImpl implements IdentityService {
@@ -23,15 +25,18 @@ public class IdentityServiceImpl implements IdentityService {
     private final WalletAccountRepository walletAccounts;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final WalletService walletService;
 
     public IdentityServiceImpl(UserRepository users,
                                WalletAccountRepository walletAccounts,
                                PasswordEncoder passwordEncoder,
-                               JwtService jwtService) {
+                               JwtService jwtService,
+                               WalletService walletService) {
         this.users = users;
         this.walletAccounts = walletAccounts;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.walletService = walletService;
     }
 
     @Override
@@ -64,6 +69,9 @@ public class IdentityServiceImpl implements IdentityService {
         wa.setUserId(saved.getId());
         wa.setCurrency("USD");
         walletAccounts.save(wa);
+
+        // Startguthaben hinzufügen (10.000 USD)
+        walletService.addInitialCredit(saved, new java.math.BigDecimal("10000.00"), "Startguthaben bei Registrierung");
 
         boolean isAdmin = saved.getRole() == Role.ADMIN;
         AccessToken token = jwtService.issueAccessToken(

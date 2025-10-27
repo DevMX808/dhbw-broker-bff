@@ -1,11 +1,9 @@
 package com.dhbw.broker.bff.service;
 
-import com.dhbw.broker.bff.domain.*;
-import com.dhbw.broker.bff.dto.TradeRequest;
-import com.dhbw.broker.bff.dto.TradeResponse;
-import com.dhbw.broker.bff.repository.AssetRepository;
-import com.dhbw.broker.bff.repository.TradeRepository;
-import com.dhbw.broker.bff.repository.UserRepository;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,10 +11,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
+import com.dhbw.broker.bff.domain.Asset;
+import com.dhbw.broker.bff.domain.Trade;
+import com.dhbw.broker.bff.domain.TradeSide;
+import com.dhbw.broker.bff.domain.User;
+import com.dhbw.broker.bff.dto.TradeRequest;
+import com.dhbw.broker.bff.dto.TradeResponse;
+import com.dhbw.broker.bff.repository.AssetRepository;
+import com.dhbw.broker.bff.repository.TradeRepository;
+import com.dhbw.broker.bff.repository.UserRepository;
 
 @Service
 public class TradeServiceImpl implements TradeService {
@@ -28,17 +31,20 @@ public class TradeServiceImpl implements TradeService {
     private final IdentityService identityService;
     private final GraphqlPriceService priceService;
     private final UserRepository userRepository;
+    private final WalletService walletService;
 
     public TradeServiceImpl(TradeRepository tradeRepository,
                            AssetRepository assetRepository,
                            IdentityService identityService,
                            GraphqlPriceService priceService,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           WalletService walletService) {
         this.tradeRepository = tradeRepository;
         this.assetRepository = assetRepository;
         this.identityService = identityService;
         this.priceService = priceService;
         this.userRepository = userRepository;
+        this.walletService = walletService;
     }
 
     @Override
@@ -81,6 +87,20 @@ public class TradeServiceImpl implements TradeService {
         if (currentPrice == null || currentPrice.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, 
                 "Unable to get current price for asset: " + request.getAssetSymbol());
+        }
+
+        // Calculate trade value
+        BigDecimal tradeValue = currentPrice.multiply(request.getQuantity());
+        
+        // Handle wallet transactions based on trade side
+        if (tradeSide == TradeSide.BUY) {
+            // For BUY: Check balance and deduct from wallet
+            walletService.deductForTrade(user, tradeValue, 
+                "BUY " + request.getQuantity() + " " + request.getAssetSymbol() + " @ $" + currentPrice);
+        } else if (tradeSide == TradeSide.SELL) {
+            // For SELL: Add proceeds to wallet
+            walletService.addFromSale(user, tradeValue, 
+                "SELL " + request.getQuantity() + " " + request.getAssetSymbol() + " @ $" + currentPrice);
         }
 
         // Create and save trade
