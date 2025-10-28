@@ -1,4 +1,4 @@
-package com.dhbw.broker.bff.exception;
+package com.dhbw.broker.bff.ratelimitException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class RateLimitExceptionHandler {
 
     @ExceptionHandler(TooManyRequestsException.class)
     public ResponseEntity<Map<String, Object>> handleTooManyRequests(
