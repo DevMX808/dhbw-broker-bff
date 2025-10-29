@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/trades")
@@ -26,13 +27,18 @@ public class TradeController {
         if (request == null || request.getAssetSymbol() == null || request.getAssetSymbol().isBlank()) {
             return ResponseEntity.badRequest().body("Invalid request");
         }
-        
+
         try {
             var tradeResponse = tradeService.executeTrade(request);
             return ResponseEntity.ok(tradeResponse);
+        } catch (ResponseStatusException e) {
+            // Bekannte Exceptions direkt mit Status zurückgeben
+            logger.warn("Trade execution failed for user: {} - {}", e.getReason(), e.getMessage());
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
         } catch (Exception e) {
-            logger.error("Error executing trade: {}", e.getMessage());
-            return ResponseEntity.internalServerError().body("Trade execution failed");
+            // Unerwartete Exceptions
+            logger.error("Unexpected error executing trade", e);
+            return ResponseEntity.internalServerError().body("Trade execution failed due to server error");
         }
     }
 
@@ -44,9 +50,12 @@ public class TradeController {
         try {
             var trades = tradeService.getUserTrades();
             return ResponseEntity.ok(trades);
+        } catch (ResponseStatusException e) {
+            logger.warn("Fetching user trades failed: {}", e.getReason());
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
         } catch (Exception e) {
-            logger.error("Error fetching user trades: {}", e.getMessage());
-            return ResponseEntity.internalServerError().body("Failed to fetch trades");
+            logger.error("Unexpected error fetching user trades", e);
+            return ResponseEntity.internalServerError().body("Failed to fetch trades due to server error");
         }
     }
 
@@ -62,9 +71,12 @@ public class TradeController {
         try {
             var trades = tradeService.getUserTradesByAsset(assetSymbol);
             return ResponseEntity.ok(trades);
+        } catch (ResponseStatusException e) {
+            logger.warn("Fetching user trades for asset {} failed: {}", assetSymbol, e.getReason());
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
         } catch (Exception e) {
-            logger.error("Error fetching user trades for asset {}: {}", assetSymbol, e.getMessage());
-            return ResponseEntity.internalServerError().body("Failed to fetch trades");
+            logger.error("Unexpected error fetching trades for asset {}", assetSymbol, e);
+            return ResponseEntity.internalServerError().body("Failed to fetch trades due to server error");
         }
     }
 }
