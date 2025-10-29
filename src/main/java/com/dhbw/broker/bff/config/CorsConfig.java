@@ -15,18 +15,24 @@ public class CorsConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${cors.allowed-origins:}") String originsCsv
+            @Value("${CORS_ALLOWED_ORIGINS:${cors.allowed-origins:}}") String originsCsv
     ) {
+        System.out.println("CORS Config - originsCsv: " + originsCsv);
+        
         List<String> origins = Arrays.stream(originsCsv.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
 
+        System.out.println("CORS Config - parsed origins: " + origins);
+
         CorsConfiguration config = new CorsConfiguration();
         if (!origins.isEmpty()) {
             config.setAllowedOrigins(origins);
+            System.out.println("CORS Config - using origins: " + origins);
         } else {
             config.setAllowedOrigins(List.of("http://localhost:4200"));
+            System.out.println("CORS Config - using default localhost");
         }
 
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
