@@ -1,10 +1,12 @@
 package com.dhbw.broker.bff.service;
 
-import com.dhbw.broker.bff.domain.HeldTrade;
-import com.dhbw.broker.bff.repository.HeldTradeRepository;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import com.dhbw.broker.bff.domain.HeldTrade;
+import com.dhbw.broker.bff.repository.HeldTradeRepository;
 
 @Service
 public class HeldTradeService {
