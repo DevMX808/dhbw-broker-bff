@@ -124,4 +124,56 @@ public class IdentityServiceImpl implements IdentityService {
         return users.findById(java.util.UUID.fromString(userId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
     }
+
+    @Override
+    @Transactional
+    public User updateProfile(com.dhbw.broker.bff.dto.UpdateProfileInput input) {
+        User user = getCurrentUser();
+        user.setFirstName(input.firstName().trim());
+        user.setLastName(input.lastName().trim());
+        return users.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(com.dhbw.broker.bff.dto.ChangePasswordInput input) {
+        User user = getCurrentUser();
+        
+        if (!passwordEncoder.matches(input.currentPassword(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Aktuelles Passwort ist falsch");
+        }
+        
+        user.setPasswordHash(passwordEncoder.encode(input.newPassword()));
+        users.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void changeEmail(com.dhbw.broker.bff.dto.ChangeEmailInput input) {
+        User user = getCurrentUser();
+        
+        if (!passwordEncoder.matches(input.password(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwort ist falsch");
+        }
+        
+        if (users.findByEmail(input.newEmail()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "E-Mail bereits vergeben");
+        }
+        
+        user.setEmail(input.newEmail().trim().toLowerCase());
+        users.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAccount(com.dhbw.broker.bff.dto.DeleteAccountInput input) {
+        User user = getCurrentUser();
+        
+        if (!passwordEncoder.matches(input.password(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwort ist falsch");
+        }
+        
+        // User wird durch CASCADE in DB gelöscht (Wallet, Trades, etc.)
+        users.delete(user);
+    }
 }
