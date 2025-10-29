@@ -24,20 +24,26 @@ public class HeldTradeController {
         this.identityService = identityService;
     }
 
+    // Übersicht aller gehaltenen Trades
     @GetMapping("")
-    public ResponseEntity<List<Map<String, Object>>> getHeldTrades() {
+    public ResponseEntity<List<HeldTrade>> getHeldTrades() {
         User user = identityService.getCurrentUser();
-        List<HeldTrade> heldTrades = heldTradeService.getHeldTradesForUser(user.getUserId());
-        List<Map<String, Object>> response = heldTrades.stream().map(trade -> {
-            Map<String, Object> map = new java.util.HashMap<>();
-            map.put("id", trade.getId());
-            map.put("tradeId", trade.getTradeId());
-            map.put("assetSymbol", trade.getAssetSymbol());
-            map.put("quantity", trade.getQuantity());
-            map.put("buyPriceUsd", trade.getBuyPriceUsd());
-            map.put("createdAt", trade.getCreatedAt());
-            return map;
-        }).collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(heldTradeService.getHeldTradesForUser(user.getUserId()));
+    }
+
+    // Neuer Kauf
+    @PostMapping("/buy")
+    public ResponseEntity<HeldTrade> buyTrade(@RequestBody HeldTrade trade) {
+        User user = identityService.getCurrentUser();
+        trade.setUserId(user.getUserId());
+        trade.setCreatedAt(java.time.OffsetDateTime.now());
+        return ResponseEntity.ok(heldTradeService.addHeldTrade(trade));
+    }
+
+    // Verkauf
+    @DeleteMapping("/sell/{tradeId}")
+    public ResponseEntity<Void> sellTrade(@PathVariable Long tradeId) {
+        heldTradeService.removeHeldTrade(tradeId);
+        return ResponseEntity.noContent().build();
     }
 }
