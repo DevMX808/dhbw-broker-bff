@@ -90,7 +90,7 @@ public class TradeServiceImpl implements TradeService {
         BigDecimal tradeValue = currentPrice.multiply(request.getQuantity());
 
         if (tradeSide == TradeSide.BUY) {
-            BigDecimal balance = walletService.getBalance(user);
+            BigDecimal balance = walletService.getCurrentBalance(user.getUserId());
             if (balance.compareTo(tradeValue) < 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nicht genug Guthaben für diesen Kauf");
             }
