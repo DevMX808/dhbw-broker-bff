@@ -66,4 +66,19 @@ public class WalletService {
         tx.setNote(note);
         return walletTransactionRepository.save(tx);
     }
+
+    @Transactional
+    public WalletTransaction addFunds(UUID userId, BigDecimal amount, String note) {
+        // User-Objekt ist für die Transaktion erforderlich, aber wir haben nur die ID
+        // Erstelle ein minimales User-Objekt (nicht ideal, aber funktional)
+        User user = new User();
+        user.setUserId(userId);
+        
+        WalletTransaction tx = new WalletTransaction();
+        tx.setUser(user);
+        tx.setType(WalletTransactionType.DEPOSIT);
+        tx.setAmountUsd(amount);
+        tx.setNote(note);
+        return walletTransactionRepository.save(tx);
+    }
 }

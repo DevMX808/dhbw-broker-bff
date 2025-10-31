@@ -5,6 +5,8 @@ import com.dhbw.broker.bff.service.IdentityService;
 import com.dhbw.broker.bff.service.WalletService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -54,6 +56,40 @@ public class WalletController {
             .collect(Collectors.toList());
         
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/add-funds")
+    public ResponseEntity<Map<String, Object>> addFunds(@RequestBody Map<String, Object> request) {
+        var user = identityService.getCurrentUser();
+        
+        // Validierung des Betrags
+        Object amountObj = request.get("amount");
+        if (amountObj == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Amount is required"));
+        }
+        
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(amountObj.toString());
+            if (amount.compareTo(BigDecimal.ZERO) <= 0 || amount.compareTo(new BigDecimal("10000")) > 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Amount must be between 0.01 and 10000"));
+            }
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid amount format"));
+        }
+        
+        // Guthaben hinzufügen (einfache Implementierung)
+        walletService.addFunds(user.getUserId(), amount, "Manual funds addition");
+        
+        // Neues Guthaben zurückgeben
+        BigDecimal newBalance = walletService.getCurrentBalance(user.getUserId());
+        
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "newBalance", newBalance,
+            "addedAmount", amount,
+            "message", "Funds added successfully"
+        ));
     }
 
 }
