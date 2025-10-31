@@ -88,4 +88,27 @@ public class PriceRingController {
 
     return ResponseEntity.ok(quote);
   }
+
+
+  @GetMapping("/trend/{symbol}")
+  public ResponseEntity<Map<String, String>> getPriceTrend(@PathVariable String symbol) {
+    if (symbol == null || symbol.isBlank() || symbol.length() > 10) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    var prices = priceService.get24hPrices(symbol);
+    
+    if (prices.size() < 2) {
+      return ResponseEntity.ok(Map.of("priceChange", "UNKNOWN"));
+    }
+
+    // Die letzten zwei Preise vergleichen
+    var newestPrice = new BigDecimal(prices.get(prices.size() - 1).get("priceUsd").toString());
+    var previousPrice = new BigDecimal(prices.get(prices.size() - 2).get("priceUsd").toString());
+
+    String priceChange = newestPrice.compareTo(previousPrice) > 0 ? "UP" : 
+                         newestPrice.compareTo(previousPrice) < 0 ? "DOWN" : "SAME";
+
+    return ResponseEntity.ok(Map.of("priceChange", priceChange));
+  }
 }
