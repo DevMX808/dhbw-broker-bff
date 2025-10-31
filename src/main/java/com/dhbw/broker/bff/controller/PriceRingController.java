@@ -89,7 +89,9 @@ public class PriceRingController {
     return ResponseEntity.ok(quote);
   }
 
-
+  /**
+   * Einfacher Endpoint: Ist der Preis gestiegen oder gefallen?
+   */
   @GetMapping("/trend/{symbol}")
   public ResponseEntity<Map<String, String>> getPriceTrend(@PathVariable String symbol) {
     if (symbol == null || symbol.isBlank() || symbol.length() > 10) {
