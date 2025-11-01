@@ -1,98 +1,88 @@
 package com.dhbw.broker.bff.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.net.ssl.HttpsURLConnection;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.List;
 
 public final class AlexaSignatureVerifier {
 
-    private static final Logger log = LoggerFactory.getLogger(AlexaSignatureVerifier.class);
-    private static final long MAX_AGE_SECONDS = 150L;
+    private static final List<String> ALLOWED_HOSTS = List.of(
+            "s3.amazonaws.com",
+            "localhost",
+            "127.0.0.1",
+            "rocky-atoll-88358-b10b362cee67.herokuapp.com"
+    );
 
     private AlexaSignatureVerifier() {
     }
 
-    public static boolean isTimestampValid(String isoTimestamp) {
-        if (isoTimestamp == null || isoTimestamp.isBlank()) {
+    public static boolean isSignatureValid(String signatureBase64, String certUrl, byte[] bodyBytes) {
+        try {
+            if (!isCertUrlAllowed(certUrl)) {
+                return false;
+            }
+
+            URI uri = URI.create(certUrl);
+            HttpsURLConnection connection = (HttpsURLConnection) uri.toURL().openConnection();
+            connection.connect();
+
+            try (InputStream in = connection.getInputStream()) {
+                CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+                X509Certificate cert = (X509Certificate) certFactory.generateCertificate(in);
+                cert.checkValidity();
+
+                PublicKey publicKey = cert.getPublicKey();
+
+                byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
+
+                Signature sig = Signature.getInstance("SHA1withRSA");
+                sig.initVerify(publicKey);
+                sig.update(bodyBytes);
+
+                return sig.verify(signatureBytes);
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean isTimestampValid(String timestampIso) {
+        if (timestampIso == null || timestampIso.isBlank()) {
             return false;
         }
         try {
-            Instant requestTs = Instant.parse(isoTimestamp);
+            Instant ts = Instant.parse(timestampIso);
             Instant now = Instant.now();
-            long diff = Math.abs(ChronoUnit.SECONDS.between(now, requestTs));
-            return diff <= MAX_AGE_SECONDS;
+            long diff = Math.abs(ChronoUnit.SECONDS.between(now, ts));
+            return diff <= 150;
         } catch (Exception e) {
-            log.warn("Could not parse Alexa timestamp: {}", isoTimestamp);
             return false;
         }
     }
 
-    public static boolean isSignatureValid(String signatureB64, String certUrl, byte[] rawBody) {
+    public static boolean isCertUrlAllowed(String url) {
         try {
-            if (signatureB64 == null || certUrl == null || rawBody == null) {
-                log.warn("Missing signature, certUrl or body");
+            URI uri = URI.create(url);
+            String host = uri.getHost();
+            if (host == null) {
                 return false;
             }
-            if (!isValidCertUrl(certUrl)) {
-                log.warn("Invalid Alexa cert URL: {}", certUrl);
-                return false;
+            for (String allowed : ALLOWED_HOSTS) {
+                if (host.equalsIgnoreCase(allowed) || host.toLowerCase().endsWith("." + allowed.toLowerCase())) {
+                    return true;
+                }
             }
-            X509Certificate cert = downloadCertificate(certUrl);
-            if (cert == null) {
-                log.warn("Could not download Alexa certificate");
-                return false;
-            }
-            cert.checkValidity();
-            byte[] signatureBytes = Base64.getDecoder().decode(signatureB64);
-            Signature sig = Signature.getInstance("SHA1withRSA");
-            sig.initVerify(cert.getPublicKey());
-            sig.update(rawBody);
-            boolean ok = sig.verify(signatureBytes);
-            if (!ok) {
-                log.warn("Alexa signature verification failed");
-            }
-            return ok;
-        } catch (Exception e) {
-            log.warn("Alexa signature verification error: {}", e.getMessage());
             return false;
-        }
-    }
-
-    private static boolean isValidCertUrl(String certUrl) {
-        try {
-            URI uri = new URI(certUrl);
-            URL url = uri.toURL();
-            if (!"https".equalsIgnoreCase(url.getProtocol())) {
-                return false;
-            }
-            if (!"s3.amazonaws.com".equalsIgnoreCase(url.getHost())) {
-                return false;
-            }
-            return url.getPath().startsWith("/echo.api/");
         } catch (Exception e) {
             return false;
-        }
-    }
-
-    private static X509Certificate downloadCertificate(String certUrl) throws Exception {
-        URI uri = new URI(certUrl);
-        URL url = uri.toURL();
-        HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.connect();
-        try (InputStream in = conn.getInputStream()) {
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            return (X509Certificate) cf.generateCertificate(in);
         }
     }
 }

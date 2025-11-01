@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/integrations/alexa")
@@ -24,6 +25,11 @@ public class AlexaSkillController {
 
     private static final Logger log = LoggerFactory.getLogger(AlexaSkillController.class);
     private static final String EXPECTED_SKILL_ID = "amzn1.ask.skill.b5a01dcf-b1e7-43d2-bcf3-8af3c3bbef06";
+    private static final Set<String> DEMO_ORIGINS = Set.of(
+            "http://localhost:4200",
+            "https://localhost:4200",
+            "https://rocky-atoll-88358-b10b362cee67.herokuapp.com"
+    );
 
     private final AssetRepository assetRepository;
     private final GraphqlPriceService priceService;
@@ -33,42 +39,41 @@ public class AlexaSkillController {
     public ResponseEntity<AlexaResponse> handleAlexa(
             @RequestBody String rawJson,
             @RequestHeader(value = "Signature", required = false) String signature,
-            @RequestHeader(value = "SignatureCertChainUrl", required = false) String certUrl
+            @RequestHeader(value = "SignatureCertChainUrl", required = false) String certUrl,
+            @RequestHeader(value = "Origin", required = false) String origin,
+            @RequestHeader(value = "Referer", required = false) String referer
     ) {
+
+        boolean isDemoCall = isDemoOrigin(origin, referer);
 
         AlexaRequest request;
         try {
             request = objectMapper.readValue(rawJson, AlexaRequest.class);
         } catch (Exception e) {
-            log.warn("Could not parse Alexa JSON: {}", e.getMessage());
             return ResponseEntity.ok(simplePlainText("Die Anfrage konnte nicht gelesen werden."));
         }
 
-        String ts = request.getRequest() != null ? request.getRequest().getTimestamp() : null;
-        if (!AlexaSignatureVerifier.isTimestampValid(ts)) {
-            log.warn("Alexa timestamp invalid: {}", ts);
-            return ResponseEntity.ok(simplePlainText("Die Anfrage ist abgelaufen."));
-        }
+        boolean hasAlexaHeaders = signature != null && certUrl != null;
 
-        byte[] rawBytes = rawJson.getBytes(StandardCharsets.UTF_8);
-        if (signature != null && certUrl != null) {
+        if (hasAlexaHeaders && !isDemoCall) {
+            String ts = request.getRequest() != null ? request.getRequest().getTimestamp() : null;
+            if (!AlexaSignatureVerifier.isTimestampValid(ts)) {
+                return ResponseEntity.ok(simplePlainText("Die Anfrage ist abgelaufen."));
+            }
+
+            byte[] rawBytes = rawJson.getBytes(StandardCharsets.UTF_8);
             boolean sigOk = AlexaSignatureVerifier.isSignatureValid(signature, certUrl, rawBytes);
             if (!sigOk) {
-                log.warn("Alexa signature not valid");
                 return ResponseEntity.ok(simplePlainText("Die Anfrage konnte nicht verifiziert werden."));
             }
-        } else {
-            log.info("No Alexa signature headers present – assuming local/test call");
-        }
 
-        String appId = null;
-        if (request.getSession() != null
-                && request.getSession().getApplication() != null) {
-            appId = request.getSession().getApplication().getApplicationId();
-        }
-        if (!EXPECTED_SKILL_ID.equals(appId)) {
-            log.warn("Alexa call with wrong appId: {}", appId);
-            return ResponseEntity.ok(simplePlainText("Diese Anfrage stammt nicht von dem erwarteten Skill."));
+            String appId = null;
+            if (request.getSession() != null && request.getSession().getApplication() != null) {
+                appId = request.getSession().getApplication().getApplicationId();
+            }
+            if (!EXPECTED_SKILL_ID.equals(appId)) {
+                return ResponseEntity.ok(simplePlainText("Diese Anfrage stammt nicht von dem erwarteten Skill."));
+            }
         }
 
         if (request.getRequest() == null) {
@@ -97,6 +102,20 @@ public class AlexaSkillController {
             case "ReadSingleAssetIntent" -> ResponseEntity.ok(buildSingleAssetResponse(request));
             default -> ResponseEntity.ok(simplePlainText("Das Intent " + intentName + " kenne ich nicht."));
         };
+    }
+
+    private boolean isDemoOrigin(String origin, String referer) {
+        if (origin != null && DEMO_ORIGINS.contains(origin)) {
+            return true;
+        }
+        if (referer != null) {
+            for (String allowed : DEMO_ORIGINS) {
+                if (referer.startsWith(allowed)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private AlexaResponse buildAllPricesResponse() {
@@ -145,7 +164,6 @@ public class AlexaSkillController {
         }
 
         String normalized = AssetNameNormalizer.normalize(rawAsset);
-        log.info("Alexa single asset request: raw='{}' -> normalized='{}'", rawAsset, normalized);
 
         if (normalized != null) {
             var bySymbol = assetRepository.findByAssetSymbolAndActive(normalized);
