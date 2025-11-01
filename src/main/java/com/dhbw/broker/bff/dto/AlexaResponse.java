@@ -10,20 +10,28 @@ public class AlexaResponse {
     private String version;
     private AlexaResponseBody response;
 
-    @Setter
     @Getter
+    @Setter
     public static class AlexaResponseBody {
         private AlexaOutputSpeech outputSpeech;
+        private AlexaOutputSpeech reprompt;
         private Boolean shouldEndSession;
-
+        private AlexaCard card;
     }
 
-    @Setter
     @Getter
+    @Setter
     public static class AlexaOutputSpeech {
         private String type;
         private String text;
         private String ssml;
+    }
 
+    @Getter
+    @Setter
+    public static class AlexaCard {
+        private String type;
+        private String title;
+        private String content;
     }
 }
