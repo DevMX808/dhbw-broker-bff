@@ -36,11 +36,8 @@ public class CorsConfig {
                 "http://localhost:8000",  // MPA
                 "http://127.0.0.1:8000",  // MPA alternative
                 "http://localhost:8082",  // MPA alternative port
-                "http://127.0.0.1:8082"   // MPA alternative port
-                    "http://localhost:4200",
-                    "http://localhost:8000",
-                    "http://127.0.0.1:8000",
-                    "https://pacific-citadel-16324-f0e736807217.herokuapp.com"  // Production
+                "http://127.0.0.1:8082",  // MPA alternative port
+                "https://pacific-citadel-16324-f0e736807217.herokuapp.com"  // Production
             ));
             System.out.println("CORS Config - using default localhost with MPA support");
         }
