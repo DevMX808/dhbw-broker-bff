@@ -34,7 +34,9 @@ public class CorsConfig {
             config.setAllowedOrigins(List.of(
                 "http://localhost:4200",  // Angular SPA
                 "http://localhost:8000",  // MPA
-                "http://127.0.0.1:8000"   // MPA alternative
+                "http://127.0.0.1:8000",  // MPA alternative
+                "http://localhost:8082",  // MPA alternative port
+                "http://127.0.0.1:8082"   // MPA alternative port
             ));
             System.out.println("CORS Config - using default localhost with MPA support");
         }
