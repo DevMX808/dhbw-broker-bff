@@ -4,7 +4,9 @@ import com.dhbw.broker.bff.dto.AlexaRequest;
 import com.dhbw.broker.bff.dto.AlexaResponse;
 import com.dhbw.broker.bff.repository.AssetRepository;
 import com.dhbw.broker.bff.service.GraphqlPriceService;
+import com.dhbw.broker.bff.util.AlexaSignatureVerifier;
 import com.dhbw.broker.bff.util.AssetNameNormalizer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/integrations/alexa")
@@ -20,13 +23,55 @@ import java.math.BigDecimal;
 public class AlexaSkillController {
 
     private static final Logger log = LoggerFactory.getLogger(AlexaSkillController.class);
+    private static final String EXPECTED_SKILL_ID = "amzn1.ask.skill.b5a01dcf-b1e7-43d2-bcf3-8af3c3bbef06";
 
     private final AssetRepository assetRepository;
     private final GraphqlPriceService priceService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<AlexaResponse> handleAlexa(@RequestBody AlexaRequest request) {
-        if (request == null || request.getRequest() == null) {
+    public ResponseEntity<AlexaResponse> handleAlexa(
+            @RequestBody String rawJson,
+            @RequestHeader(value = "Signature", required = false) String signature,
+            @RequestHeader(value = "SignatureCertChainUrl", required = false) String certUrl
+    ) {
+
+        AlexaRequest request;
+        try {
+            request = objectMapper.readValue(rawJson, AlexaRequest.class);
+        } catch (Exception e) {
+            log.warn("Could not parse Alexa JSON: {}", e.getMessage());
+            return ResponseEntity.ok(simplePlainText("Die Anfrage konnte nicht gelesen werden."));
+        }
+
+        String ts = request.getRequest() != null ? request.getRequest().getTimestamp() : null;
+        if (!AlexaSignatureVerifier.isTimestampValid(ts)) {
+            log.warn("Alexa timestamp invalid: {}", ts);
+            return ResponseEntity.ok(simplePlainText("Die Anfrage ist abgelaufen."));
+        }
+
+        byte[] rawBytes = rawJson.getBytes(StandardCharsets.UTF_8);
+        if (signature != null && certUrl != null) {
+            boolean sigOk = AlexaSignatureVerifier.isSignatureValid(signature, certUrl, rawBytes);
+            if (!sigOk) {
+                log.warn("Alexa signature not valid");
+                return ResponseEntity.ok(simplePlainText("Die Anfrage konnte nicht verifiziert werden."));
+            }
+        } else {
+            log.info("No Alexa signature headers present – assuming local/test call");
+        }
+
+        String appId = null;
+        if (request.getSession() != null
+                && request.getSession().getApplication() != null) {
+            appId = request.getSession().getApplication().getApplicationId();
+        }
+        if (!EXPECTED_SKILL_ID.equals(appId)) {
+            log.warn("Alexa call with wrong appId: {}", appId);
+            return ResponseEntity.ok(simplePlainText("Diese Anfrage stammt nicht von dem erwarteten Skill."));
+        }
+
+        if (request.getRequest() == null) {
             return ResponseEntity.ok(simplePlainText("Ich habe keine Anfrage erhalten."));
         }
 
@@ -107,15 +152,10 @@ public class AlexaSkillController {
             if (bySymbol.isPresent()) {
                 var asset = bySymbol.get();
                 BigDecimal price = priceService.getCurrentPrice(asset.getAssetSymbol());
-                if (price == null) {
-                    return simplePlainText("Für " + asset.getName() + " konnte ich gerade keinen Preis holen.");
-                }
-                String text = asset.getName() + " steht aktuell bei " + price + " US Dollar.";
-                return simplePlainText(text);
+                return buildAssetPriceResponse(asset.getName(), price);
             }
         }
 
-        // damit das Lambda nicht über eine nicht-finale Variable meckert
         final String rawAssetTrimmed = rawAsset.trim();
 
         var all = assetRepository.findAllActive();
@@ -126,14 +166,18 @@ public class AlexaSkillController {
         if (match.isPresent()) {
             var asset = match.get();
             BigDecimal price = priceService.getCurrentPrice(asset.getAssetSymbol());
-            if (price == null) {
-                return simplePlainText("Für " + asset.getName() + " konnte ich gerade keinen Preis holen.");
-            }
-            String text = asset.getName() + " steht aktuell bei " + price + " US Dollar.";
-            return simplePlainText(text);
+            return buildAssetPriceResponse(asset.getName(), price);
         }
 
         return simplePlainText("Das Asset " + rawAsset + " konnte ich nicht finden. Sage zum Beispiel: Lies mir Bitcoin vor.");
+    }
+
+    private AlexaResponse buildAssetPriceResponse(String assetName, BigDecimal price) {
+        if (price == null) {
+            return simplePlainText("Für " + assetName + " konnte ich gerade keinen Preis holen.");
+        }
+        String text = assetName + " steht aktuell bei " + price + " US Dollar.";
+        return simplePlainText(text);
     }
 
     private AlexaResponse simplePlainText(String text) {
