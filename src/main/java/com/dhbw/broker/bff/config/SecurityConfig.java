@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 "/jwks.json", "/.well-known/jwks.json",
                                 "/frontend-config").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login", "/auth/register").permitAll()
+                        .requestMatchers("/integrations/alexa", "/integrations/alexa/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll()

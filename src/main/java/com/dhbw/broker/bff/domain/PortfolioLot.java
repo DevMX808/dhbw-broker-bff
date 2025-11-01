@@ -1,12 +1,14 @@
 package com.dhbw.broker.bff.domain;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 import org.hibernate.annotations.UuidGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Getter
 @Entity
 @Table(name = "portfolio_lots",
         indexes = {
@@ -50,15 +52,4 @@ public class PortfolioLot {
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime createdAt;
-        // Getter-Methoden
-        public UUID getLotId() { return lotId; }
-        public User getUser() { return user; }
-        public Asset getAsset() { return asset; }
-        public Trade getBuyTrade() { return buyTrade; }
-        public LocalDate getBuyDate() { return buyDate; }
-        public BigDecimal getBuyPriceUsd() { return buyPriceUsd; }
-        public BigDecimal getInitialQuantity() { return initialQuantity; }
-        public BigDecimal getRemainingQuantity() { return remainingQuantity; }
-        public BigDecimal getLotCostUsd() { return lotCostUsd; }
-        public OffsetDateTime getCreatedAt() { return createdAt; }
 }
