@@ -72,5 +72,5 @@ public class AdminService {
         public void setUpdatedAt(java.time.OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
         public BigDecimal getBalance() { return balance; }
         public void setBalance(BigDecimal balance) { this.balance = balance; }
-    }
+    }ehler beim Laden der Benutzer (Status: 200): Unexpected token '<', "<!doctype "... is not valid JSON
 }
