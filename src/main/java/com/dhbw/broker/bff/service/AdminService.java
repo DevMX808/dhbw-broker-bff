@@ -2,10 +2,17 @@ package com.dhbw.broker.bff.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import com.dhbw.broker.bff.domain.Status;
 import com.dhbw.broker.bff.domain.User;
 import com.dhbw.broker.bff.repository.UserRepository;
 
@@ -27,6 +34,37 @@ public class AdminService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public UserWithBalanceDto updateUserStatus(UUID userId, String newStatus, String currentUserEmail) {
+        Status status;
+        try {
+            status = Status.valueOf(newStatus);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid status. Must be ACTIVATED or DEACTIVATED"
+            );
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "User not found with id: " + userId
+                ));
+
+        if (user.getEmail().equals(currentUserEmail) && status == Status.DEACTIVATED) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "You cannot deactivate your own account"
+            );
+        }
+
+        user.setStatus(status);
+        User savedUser = userRepository.save(user);
+
+        return mapToDto(savedUser);
+    }
+
     private UserWithBalanceDto mapToDto(User user) {
         BigDecimal balance = walletService.getCurrentBalance(user.getUserId());
         UserWithBalanceDto dto = new UserWithBalanceDto();
@@ -42,6 +80,8 @@ public class AdminService {
         return dto;
     }
 
+    @Setter
+    @Getter
     public static class UserWithBalanceDto {
         private java.util.UUID userId;
         private String email;
@@ -53,24 +93,5 @@ public class AdminService {
         private java.time.OffsetDateTime updatedAt;
         private BigDecimal balance;
 
-        // Getters and Setters
-        public java.util.UUID getUserId() { return userId; }
-        public void setUserId(java.util.UUID userId) { this.userId = userId; }
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-        public String getFirstName() { return firstName; }
-        public void setFirstName(String firstName) { this.firstName = firstName; }
-        public String getLastName() { return lastName; }
-        public void setLastName(String lastName) { this.lastName = lastName; }
-        public String getRole() { return role; }
-        public void setRole(String role) { this.role = role; }
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
-        public java.time.OffsetDateTime getCreatedAt() { return createdAt; }
-        public void setCreatedAt(java.time.OffsetDateTime createdAt) { this.createdAt = createdAt; }
-        public java.time.OffsetDateTime getUpdatedAt() { return updatedAt; }
-        public void setUpdatedAt(java.time.OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
-        public BigDecimal getBalance() { return balance; }
-        public void setBalance(BigDecimal balance) { this.balance = balance; }
     }
 }
