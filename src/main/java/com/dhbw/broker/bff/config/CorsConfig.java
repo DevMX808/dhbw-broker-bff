@@ -18,7 +18,7 @@ public class CorsConfig {
             @Value("${CORS_ALLOWED_ORIGINS:${cors.allowed-origins:}}") String originsCsv
     ) {
         System.out.println("CORS Config - originsCsv: " + originsCsv);
-        
+
         List<String> origins = Arrays.stream(originsCsv.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
@@ -37,14 +37,27 @@ public class CorsConfig {
                 "http://127.0.0.1:8000",  // MPA alternative
                 "http://localhost:8082",  // MPA alternative port
                 "http://127.0.0.1:8082"   // MPA alternative port
+                    "http://localhost:4200",
+                    "http://localhost:8000",
+                    "http://127.0.0.1:8000",
+                    "https://pacific-citadel-16324-f0e736807217.herokuapp.com"  // Production
             ));
             System.out.println("CORS Config - using default localhost with MPA support");
         }
 
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(false);
-        config.setExposedHeaders(List.of("WWW-Authenticate"));
+
+        config.setAllowCredentials(true);
+
+        config.setExposedHeaders(List.of(
+                "Authorization",
+                "WWW-Authenticate",
+                "Cache-Control",
+                "Content-Type"
+        ));
+
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
