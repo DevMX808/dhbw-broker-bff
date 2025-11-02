@@ -70,7 +70,6 @@ public class IdentityServiceImpl implements IdentityService {
         wa.setCurrency("USD");
         walletAccounts.save(wa);
 
-        // Startguthaben hinzufügen (10.000 USD)
         walletService.addInitialCredit(saved, new java.math.BigDecimal("10000.00"), "Startguthaben bei Registrierung");
 
         boolean isAdmin = saved.getRole() == Role.ADMIN;
@@ -99,7 +98,7 @@ public class IdentityServiceImpl implements IdentityService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
         if (u.getStatus() != Status.ACTIVATED) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is not active");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ihr Account wurde gesperrt. Bitte kontaktieren Sie den Administrator.");
         }
 
         if (!passwordEncoder.matches(input.password(), u.getPasswordHash())) {
@@ -138,11 +137,11 @@ public class IdentityServiceImpl implements IdentityService {
     @Transactional
     public void changePassword(com.dhbw.broker.bff.dto.ChangePasswordInput input) {
         User user = getCurrentUser();
-        
+
         if (!passwordEncoder.matches(input.currentPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Aktuelles Passwort ist falsch");
         }
-        
+
         user.setPasswordHash(passwordEncoder.encode(input.newPassword()));
         users.save(user);
     }
@@ -151,15 +150,15 @@ public class IdentityServiceImpl implements IdentityService {
     @Transactional
     public void changeEmail(com.dhbw.broker.bff.dto.ChangeEmailInput input) {
         User user = getCurrentUser();
-        
+
         if (!passwordEncoder.matches(input.password(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwort ist falsch");
         }
-        
+
         if (users.findByEmail(input.newEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "E-Mail bereits vergeben");
         }
-        
+
         user.setEmail(input.newEmail().trim().toLowerCase());
         users.save(user);
     }
@@ -168,12 +167,11 @@ public class IdentityServiceImpl implements IdentityService {
     @Transactional
     public void deleteAccount(com.dhbw.broker.bff.dto.DeleteAccountInput input) {
         User user = getCurrentUser();
-        
+
         if (!passwordEncoder.matches(input.password(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwort ist falsch");
         }
-        
-        // User wird durch CASCADE in DB gelöscht (Wallet, Trades, etc.)
+
         users.delete(user);
     }
 }
