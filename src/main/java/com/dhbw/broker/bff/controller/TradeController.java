@@ -1,13 +1,24 @@
 package com.dhbw.broker.bff.controller;
 
+import com.dhbw.broker.bff.domain.Asset;
+import com.dhbw.broker.bff.domain.HeldTrade;
 import com.dhbw.broker.bff.dto.TradeRequest;
+import com.dhbw.broker.bff.repository.AssetRepository;
+import com.dhbw.broker.bff.repository.HeldTradeRepository;
+import com.dhbw.broker.bff.service.GraphqlPriceService;
+import com.dhbw.broker.bff.service.IdentityService;
 import com.dhbw.broker.bff.service.TradeService;
+import com.dhbw.broker.bff.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.math.BigDecimal;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/trades")
@@ -18,10 +29,12 @@ public class TradeController {
     private static final Logger logger = LoggerFactory.getLogger(TradeController.class);
 
     private final TradeService tradeService;
+    private final IdentityService identityService;
+    private final GraphqlPriceService priceService;
+    private final WalletService walletService;
+    private final AssetRepository assetRepository;
+    private final HeldTradeRepository heldTradeRepository;
 
-    /**
-     * Führt einen Trade aus
-     */
     @PostMapping
     public ResponseEntity<?> executeTrade(@RequestBody TradeRequest request) {
         if (request == null || request.getAssetSymbol() == null || request.getAssetSymbol().isBlank()) {
@@ -29,22 +42,70 @@ public class TradeController {
         }
 
         try {
+            validateTradeBeforeQueuing(request);
+
             var tradeResponse = tradeService.executeTrade(request);
             return ResponseEntity.ok(tradeResponse);
         } catch (ResponseStatusException e) {
-            // Bekannte Exceptions direkt mit Status zurückgeben
             logger.warn("Trade execution failed for user: {} - {}", e.getReason(), e.getMessage());
             return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
         } catch (Exception e) {
-            // Unerwartete Exceptions
             logger.error("Unexpected error executing trade", e);
             return ResponseEntity.internalServerError().body("Trade execution failed due to server error");
         }
     }
 
-    /**
-     * Holt alle Trades des aktuellen Users
-     */
+    private void validateTradeBeforeQueuing(TradeRequest request) {
+        var user = identityService.getCurrentUser();
+        UUID userId = user.getUserId();
+
+        Asset asset = assetRepository.findByAssetSymbolAndActive(request.getAssetSymbol())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid or inactive asset: " + request.getAssetSymbol()));
+
+        if (request.getQuantity() == null || request.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be positive");
+        }
+
+        if (asset.getMinTradeIncrement() != null &&
+                request.getQuantity().remainder(asset.getMinTradeIncrement()).compareTo(BigDecimal.ZERO) != 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Quantity must be a multiple of " + asset.getMinTradeIncrement());
+        }
+
+        BigDecimal currentPrice = priceService.getCurrentPrice(request.getAssetSymbol());
+        if (currentPrice == null || currentPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Unable to get current price for asset: " + request.getAssetSymbol());
+        }
+
+        BigDecimal tradeValue = currentPrice.multiply(request.getQuantity());
+
+        if ("BUY".equalsIgnoreCase(request.getSide())) {
+            BigDecimal balance = walletService.getCurrentBalance(userId);
+            if (balance.compareTo(tradeValue) < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        String.format("Nicht genug Guthaben für diesen Kauf. Benötigt: $%.2f USD, Verfügbar: $%.2f USD",
+                                tradeValue, balance));
+            }
+            logger.info("Pre-validation passed: User {} has sufficient balance (${}) for trade value (${})",
+                    user.getEmail(), balance, tradeValue);
+        } else if ("SELL".equalsIgnoreCase(request.getSide())) {
+            HeldTrade heldTrade = heldTradeRepository.findByUserIdAndAssetSymbol(userId, asset.getAssetSymbol())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Nicht genug Assets zum Verkaufen"));
+
+            if (heldTrade.getQuantity().compareTo(request.getQuantity()) < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        String.format("Nicht genug Assets zum Verkaufen. Verfügbar: %.4f %s, Gewünscht: %.4f %s",
+                                heldTrade.getQuantity(), asset.getAssetSymbol(),
+                                request.getQuantity(), asset.getAssetSymbol()));
+            }
+            logger.info("Pre-validation passed: User {} has sufficient holdings ({}) for sell quantity ({})",
+                    user.getEmail(), heldTrade.getQuantity(), request.getQuantity());
+        }
+    }
+
     @GetMapping("/user")
     public ResponseEntity<?> getUserTrades() {
         try {
@@ -59,9 +120,6 @@ public class TradeController {
         }
     }
 
-    /**
-     * Holt alle Trades des aktuellen Users für ein bestimmtes Asset
-     */
     @GetMapping("/user/{assetSymbol}")
     public ResponseEntity<?> getUserTradesByAsset(@PathVariable String assetSymbol) {
         if (assetSymbol == null || assetSymbol.isBlank() || assetSymbol.length() > 10) {
