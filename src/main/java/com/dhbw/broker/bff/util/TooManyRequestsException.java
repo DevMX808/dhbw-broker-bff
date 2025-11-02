@@ -1,4 +1,4 @@
-package com.dhbw.broker.bff.ratelimitException;
+package com.dhbw.broker.bff.util;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

@@ -11,7 +11,7 @@ import com.dhbw.broker.bff.config.RateLimitConfig;
 import com.dhbw.broker.bff.dto.JwtAuthResponse;
 import com.dhbw.broker.bff.dto.SignInInput;
 import com.dhbw.broker.bff.dto.SignUpInput;
-import com.dhbw.broker.bff.ratelimitException.TooManyRequestsException;
+import com.dhbw.broker.bff.util.TooManyRequestsException;
 import com.dhbw.broker.bff.service.IdentityService;
 
 import jakarta.servlet.http.HttpServletRequest;
