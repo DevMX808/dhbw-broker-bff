@@ -8,7 +8,7 @@ public interface IdentityService {
     JwtAuthResponse login(SignInInput input);
     User getCurrentUser();
     
-    // User Settings
+   
     User updateProfile(UpdateProfileInput input);
     void changePassword(ChangePasswordInput input);
     void changeEmail(ChangeEmailInput input);

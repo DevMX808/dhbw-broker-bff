@@ -62,7 +62,7 @@ public class WalletController {
     public ResponseEntity<Map<String, Object>> addFunds(@RequestBody Map<String, Object> request) {
         var user = identityService.getCurrentUser();
         
-        // Validierung des Betrags
+        
         Object amountObj = request.get("amount");
         if (amountObj == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Amount is required"));
@@ -78,10 +78,10 @@ public class WalletController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid amount format"));
         }
         
-        // Guthaben hinzufügen (einfache Implementierung)
+   
         walletService.addFunds(user.getUserId(), amount, "Manual funds addition");
         
-        // Neues Guthaben zurückgeben
+        
         BigDecimal newBalance = walletService.getCurrentBalance(user.getUserId());
         
         return ResponseEntity.ok(Map.of(

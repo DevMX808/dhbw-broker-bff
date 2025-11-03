@@ -22,14 +22,14 @@ public class HeldTradeController {
         this.identityService = identityService;
     }
 
-    // Übersicht aller gehaltenen Trades
+    
     @GetMapping("")
     public ResponseEntity<List<HeldTrade>> getHeldTrades() {
         User user = identityService.getCurrentUser();
         return ResponseEntity.ok(heldTradeService.getHeldTradesForUser(user.getUserId()));
     }
 
-    // Neuer Kauf
+    
     @PostMapping("/buy")
     public ResponseEntity<HeldTrade> buyTrade(@RequestBody HeldTrade trade) {
         User user = identityService.getCurrentUser();
@@ -38,7 +38,7 @@ public class HeldTradeController {
         return ResponseEntity.ok(heldTradeService.addHeldTrade(trade));
     }
 
-    // Verkauf
+    
     @DeleteMapping("/sell/{tradeId}")
     public ResponseEntity<Void> sellTrade(@PathVariable Long tradeId) {
         heldTradeService.removeHeldTrade(tradeId);

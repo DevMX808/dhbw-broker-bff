@@ -16,17 +16,17 @@ public class HeldTradeService {
         this.heldTradeRepository = heldTradeRepository;
     }
 
-    // Alle aktuellen Trades eines Users abrufen
+   
     public List<HeldTrade> getHeldTradesForUser(UUID userId) {
         return heldTradeRepository.findByUserId(userId);
     }
 
-    // Neuen Trade speichern (Kauf)
+
     public HeldTrade addHeldTrade(HeldTrade trade) {
         return heldTradeRepository.save(trade);
     }
 
-    // Trade löschen (Verkauf)
+  
     public void removeHeldTrade(Long tradeId) {
         heldTradeRepository.deleteByTradeId(tradeId);
     }

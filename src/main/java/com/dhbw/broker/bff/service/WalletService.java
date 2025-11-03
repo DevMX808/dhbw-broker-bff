@@ -42,7 +42,7 @@ public class WalletService {
 
     @Transactional
     public WalletTransaction deductForTrade(User user, BigDecimal amount, String note) {
-        // Prüfe, ob genug Guthaben vorhanden ist
+       
         BigDecimal currentBalance = getCurrentBalance(user.getUserId());
         if (currentBalance.compareTo(amount) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
@@ -69,8 +69,7 @@ public class WalletService {
 
     @Transactional
     public WalletTransaction addFunds(UUID userId, BigDecimal amount, String note) {
-        // User-Objekt ist für die Transaktion erforderlich, aber wir haben nur die ID
-        // Erstelle ein minimales User-Objekt (nicht ideal, aber funktional)
+        
         User user = new User();
         user.setUserId(userId);
         

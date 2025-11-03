@@ -13,8 +13,8 @@ public class RateLimitCleanupService {
         this.rateLimitService = rateLimitService;
     }
 
-    // Clean up expired rate limit entries every 5 minutes
-    @Scheduled(fixedRate = 300000) // 5 minutes in milliseconds
+   
+    @Scheduled(fixedRate = 300000) 
     public void cleanupExpiredEntries() {
         rateLimitService.clearExpiredEntries();
     }

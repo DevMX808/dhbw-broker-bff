@@ -5,9 +5,9 @@ import java.math.BigDecimal;
 public class TradeRequest {
     private String assetSymbol;
     private BigDecimal quantity;
-    private String side; // "BUY" or "SELL"
+    private String side; 
 
-    // Getters and Setters
+   
     public String getAssetSymbol() {
         return assetSymbol;
     }

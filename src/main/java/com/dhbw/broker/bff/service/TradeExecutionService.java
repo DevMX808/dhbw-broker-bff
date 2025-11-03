@@ -19,9 +19,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Service für die eigentliche Trade-Ausführung (wird vom Queue Listener aufgerufen)
- */
+
 @Service
 public class TradeExecutionService {
 

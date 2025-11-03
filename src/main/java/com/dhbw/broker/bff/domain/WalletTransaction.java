@@ -34,7 +34,7 @@ public class WalletTransaction {
     @Column(name = "note", length = 500)
     private String note;
 
-    // Getters and setters
+    
     public UUID getTxId() { return txId; }
     public void setTxId(UUID txId) { this.txId = txId; }
 

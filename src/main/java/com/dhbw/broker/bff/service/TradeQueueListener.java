@@ -40,12 +40,12 @@ public class TradeQueueListener {
             logger.info("Trade message processed successfully");
 
         } catch (ResponseStatusException e) {
-            // Business-Fehler (z.B. nicht genug Guthaben) - nicht wiederholen
+            
             logger.error("Business error processing trade: {} - Message will be discarded", e.getReason(), e);
-            // Nachricht wird aus der Queue entfernt (nicht wiederholt)
+         
 
         } catch (Exception e) {
-            // Technischer Fehler - Message wird zurück in Queue für Retry
+            
             logger.error("Technical error processing trade message - will retry", e);
             throw new RuntimeException("Failed to process trade message", e);
         }
