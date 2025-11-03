@@ -27,17 +27,20 @@ public class TradeServiceImpl implements TradeService {
     private final TradeRepository tradeRepository;
     private final IdentityService identityService;
     private final TradeQueueService tradeQueueService;
+    private final GraphqlPriceService priceService;
     private final boolean asyncTradeProcessing;
 
     public TradeServiceImpl(
             TradeRepository tradeRepository,
             IdentityService identityService,
             TradeQueueService tradeQueueService,
+            GraphqlPriceService priceService,
             @Value("${app.trade.async-processing:true}") boolean asyncTradeProcessing
     ) {
         this.tradeRepository = tradeRepository;
         this.identityService = identityService;
         this.tradeQueueService = tradeQueueService;
+        this.priceService = priceService;
         this.asyncTradeProcessing = asyncTradeProcessing;
     }
 
@@ -54,22 +57,32 @@ public class TradeServiceImpl implements TradeService {
 
         User user = identityService.getCurrentUser();
 
+        BigDecimal currentPrice = priceService.getCurrentPrice(request.getAssetSymbol());
+        if (currentPrice == null || currentPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            logger.error("Unable to get current price for asset: {}", request.getAssetSymbol());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Unable to get current price for asset: " + request.getAssetSymbol());
+        }
+
         if (asyncTradeProcessing) {
-            logger.info("Queueing trade for async processing: {} {} {} for user {}",
-                    request.getSide(), request.getQuantity(), request.getAssetSymbol(), user.getEmail());
+            logger.info("Queueing trade for async processing: {} {} {} at ${} for user {}",
+                    request.getSide(), request.getQuantity(), request.getAssetSymbol(), currentPrice, user.getEmail());
 
             TradeMessage message = TradeMessage.from(request, user.getUserId(), user.getEmail());
 
             try {
                 tradeQueueService.sendTradeMessage(message);
 
+                BigDecimal total = currentPrice.multiply(request.getQuantity());
+
                 return new TradeResponse(
                         message.messageId(),
                         OffsetDateTime.now(),
-                        null,
+                        currentPrice,
                         request.getAssetSymbol(),
                         request.getSide(),
-                        request.getQuantity()
+                        request.getQuantity(),
+                        total
                 );
             } catch (Exception e) {
                 logger.error("Failed to queue trade message", e);

@@ -73,23 +73,23 @@ public class TradeController {
                     "Quantity must be a multiple of " + asset.getMinTradeIncrement());
         }
 
-        BigDecimal currentPrice = priceService.getCurrentPrice(request.getAssetSymbol());
-        if (currentPrice == null || currentPrice.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Unable to get current price for asset: " + request.getAssetSymbol());
-        }
-
-        BigDecimal tradeValue = currentPrice.multiply(request.getQuantity());
-
         if ("BUY".equalsIgnoreCase(request.getSide())) {
-            BigDecimal balance = walletService.getCurrentBalance(userId);
-            if (balance.compareTo(tradeValue) < 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        String.format("Nicht genug Guthaben für diesen Kauf. Benötigt: $%.2f USD, Verfügbar: $%.2f USD",
-                                tradeValue, balance));
+            BigDecimal approximatePrice = priceService.getCurrentPrice(request.getAssetSymbol());
+            if (approximatePrice == null) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "Unable to get current price for asset: " + request.getAssetSymbol());
             }
-            logger.info("Pre-validation passed: User {} has sufficient balance (${}) for trade value (${})",
-                    user.getEmail(), balance, tradeValue);
+
+            BigDecimal approximateValue = approximatePrice.multiply(request.getQuantity());
+            BigDecimal balance = walletService.getCurrentBalance(userId);
+
+            if (balance.compareTo(approximateValue) < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        String.format("Nicht genug Guthaben für diesen Kauf. Benötigt: ~$%.2f USD, Verfügbar: $%.2f USD",
+                                approximateValue, balance));
+            }
+            logger.info("Pre-validation passed: User {} has sufficient balance (${}) for approximate trade value (${})",
+                    user.getEmail(), balance, approximateValue);
         } else if ("SELL".equalsIgnoreCase(request.getSide())) {
             HeldTrade heldTrade = heldTradeRepository.findByUserIdAndAssetSymbol(userId, asset.getAssetSymbol())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
