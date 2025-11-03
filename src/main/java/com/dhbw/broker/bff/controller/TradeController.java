@@ -2,6 +2,7 @@ package com.dhbw.broker.bff.controller;
 
 import com.dhbw.broker.bff.domain.Asset;
 import com.dhbw.broker.bff.domain.HeldTrade;
+import com.dhbw.broker.bff.dto.ErrorResponse;
 import com.dhbw.broker.bff.dto.TradeRequest;
 import com.dhbw.broker.bff.repository.AssetRepository;
 import com.dhbw.broker.bff.repository.HeldTradeRepository;
@@ -38,7 +39,7 @@ public class TradeController {
     @PostMapping
     public ResponseEntity<?> executeTrade(@RequestBody TradeRequest request) {
         if (request == null || request.getAssetSymbol() == null || request.getAssetSymbol().isBlank()) {
-            return ResponseEntity.badRequest().body("Invalid request");
+            return ResponseEntity.badRequest().body(ErrorResponse.of("Invalid request", 400));
         }
 
         try {
@@ -48,10 +49,12 @@ public class TradeController {
             return ResponseEntity.ok(tradeResponse);
         } catch (ResponseStatusException e) {
             logger.warn("Trade execution failed for user: {} - {}", e.getReason(), e.getMessage());
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(ErrorResponse.of(e.getReason(), e.getStatusCode().value()));
         } catch (Exception e) {
             logger.error("Unexpected error executing trade", e);
-            return ResponseEntity.internalServerError().body("Trade execution failed due to server error");
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("Trade execution failed due to server error", 500));
         }
     }
 
@@ -113,17 +116,19 @@ public class TradeController {
             return ResponseEntity.ok(trades);
         } catch (ResponseStatusException e) {
             logger.warn("Fetching user trades failed: {}", e.getReason());
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(ErrorResponse.of(e.getReason(), e.getStatusCode().value()));
         } catch (Exception e) {
             logger.error("Unexpected error fetching user trades", e);
-            return ResponseEntity.internalServerError().body("Failed to fetch trades due to server error");
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("Failed to fetch trades due to server error", 500));
         }
     }
 
     @GetMapping("/user/{assetSymbol}")
     public ResponseEntity<?> getUserTradesByAsset(@PathVariable String assetSymbol) {
         if (assetSymbol == null || assetSymbol.isBlank() || assetSymbol.length() > 10) {
-            return ResponseEntity.badRequest().body("Invalid asset symbol");
+            return ResponseEntity.badRequest().body(ErrorResponse.of("Invalid asset symbol", 400));
         }
 
         try {
@@ -131,10 +136,12 @@ public class TradeController {
             return ResponseEntity.ok(trades);
         } catch (ResponseStatusException e) {
             logger.warn("Fetching user trades for asset {} failed: {}", assetSymbol, e.getReason());
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(ErrorResponse.of(e.getReason(), e.getStatusCode().value()));
         } catch (Exception e) {
             logger.error("Unexpected error fetching trades for asset {}", assetSymbol, e);
-            return ResponseEntity.internalServerError().body("Failed to fetch trades due to server error");
+            return ResponseEntity.internalServerError()
+                    .body(ErrorResponse.of("Failed to fetch trades due to server error", 500));
         }
     }
 }
