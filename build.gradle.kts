@@ -36,9 +36,6 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
-    runtimeOnly("io.netty:netty-resolver-dns-native-macos::osx-aarch_64")
-
     implementation("org.flywaydb:flyway-core:11.7.2")
     implementation("org.flywaydb:flyway-database-postgresql:11.7.2")
     runtimeOnly("org.postgresql:postgresql:42.7.4")
